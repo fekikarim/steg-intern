@@ -1,0 +1,16 @@
+18_FUTURE
+This is what will impress the jury.
+
+VERSION_2.md
+
+IDEAS.md
+
+AI_FEATURES.md
+
+MOBILE_ROADMAP.md
+
+SCALABILITY.md
+
+PERFORMANCE.md
+
+TECHNICAL_DEBT.md
