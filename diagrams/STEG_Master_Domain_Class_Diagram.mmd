@@ -1,0 +1,457 @@
+classDiagram
+    %% Enumerations
+    class UserStatus {
+        <<enumeration>>
+        ACTIVE
+        INACTIVE
+        LOCKED
+    }
+    class ApplicationStatus {
+        <<enumeration>>
+        DRAFT
+        SUBMITTED
+        UNDER_REVIEW
+        ACCEPTED
+        REJECTED
+    }
+    class InternshipStatus {
+        <<enumeration>>
+        PLANNED
+        ACTIVE
+        COMPLETED
+        CANCELLED
+        ARCHIVED
+    }
+    class AssignmentStatus {
+        <<enumeration>>
+        ACTIVE
+        ENDED
+        REASSIGNED
+        CANCELLED
+    }
+    class TaskStatus {
+        <<enumeration>>
+        TODO
+        IN_PROGRESS
+        COMPLETED
+        CANCELLED
+    }
+    class DeliverableStatus {
+        <<enumeration>>
+        DRAFT
+        SUBMITTED
+        VALIDATED
+        REJECTED
+    }
+    class JournalStatus {
+        <<enumeration>>
+        DRAFT
+        SUBMITTED
+        VALIDATED
+        REJECTED
+    }
+    class WorkflowStatus {
+        <<enumeration>>
+        CREATED
+        RUNNING
+        COMPLETED
+        ARCHIVED
+    }
+    class WorkflowActionType {
+        <<enumeration>>
+        APPROVAL
+        VALIDATION
+    }
+    class ApprovalDecision {
+        <<enumeration>>
+        PENDING
+        APPROVED
+        REJECTED
+        RETURNED
+    }
+    class PaymentStatus {
+        <<enumeration>>
+        PENDING
+        VALIDATED
+        PAID
+        ARCHIVED
+    }
+    class PaymentMethod {
+        <<enumeration>>
+        BANK_TRANSFER
+        CHECK
+        CASH
+    }
+    class CurrencyCode {
+        <<enumeration>>
+        TND
+        EUR
+        USD
+    }
+    class NotificationType {
+        <<enumeration>>
+        EMAIL
+        PUSH
+        IN_APP
+    }
+    class NotificationPriority {
+        <<enumeration>>
+        LOW
+        NORMAL
+        HIGH
+        URGENT
+    }
+    class RecipientType {
+        <<enumeration>>
+        USER
+        DEPARTMENT
+        ROLE
+        BROADCAST
+    }
+    class EvaluationType {
+        <<enumeration>>
+        DAILY
+        WEEKLY
+        MID_TERM
+        FINAL
+        CUSTOM
+    }
+    class DocumentType {
+        <<enumeration>>
+        INTERNSHIP_CONVENTION
+        ASSIGNMENT_LETTER
+        INTERNSHIP_CERTIFICATE
+        CV
+        MOTIVATION_LETTER
+        UNIVERSITY_CONVENTION
+        TRANSCRIPT
+        NATIONAL_ID
+    }
+
+    %% Cross-Cutting Interfaces
+    class Commentable {
+        <<interface>>
+    }
+    class WorkflowAttachable {
+        <<interface>>
+    }
+
+    %% Identity & Access Management
+    class Role {
+        +UUID id
+        +String name
+        +String description
+    }
+    class Permission {
+        +UUID id
+        +String code
+        +String description
+    }
+    class User {
+        <<aggregate root>>
+        +UUID id
+        +String email
+        +String passwordHash
+        +Boolean enabled
+        +UserStatus status
+        +LocalDateTime createdAt
+        +LocalDateTime updatedAt
+    }
+    class RefreshToken {
+        +UUID id
+        +String token
+        +LocalDateTime expiryDate
+        +Boolean revoked
+    }
+    class Session {
+        +UUID id
+        +String accessToken
+        +String ipAddress
+        +String userAgent
+        +LocalDateTime loginAt
+        +LocalDateTime expiresAt
+    }
+    class AuditLog {
+        +UUID id
+        +String action
+        +String entityName
+        +UUID entityId
+        +String oldValue
+        +String newValue
+        +LocalDateTime createdAt
+    }
+
+    Role "1" -- "0..*" User : has
+    Role "*" -- "*" Permission : grants
+    User "1" -- "0..*" RefreshToken : owns
+    User "1" -- "0..*" Session : owns
+    User "1" -- "0..*" AuditLog : generates
+
+    %% Organization Management
+    class Department {
+        +UUID id
+        +String code
+        +String name
+        +String description
+    }
+    class Employee {
+        <<abstract>>
+        +String firstName
+        +String lastName
+        +String phoneNumber
+        +String employeeNumber
+        +LocalDate hireDate
+    }
+    class Supervisor {
+        +String position
+    }
+    class HRManager {
+    }
+    class FinanceManager {
+    }
+    class Director {
+    }
+    class Administrator {
+    }
+
+    Department "1" -- "0..*" Employee : employs
+
+    User <|-- Employee
+    Employee <|-- Supervisor
+    Employee <|-- HRManager
+    Employee <|-- FinanceManager
+    Employee <|-- Director
+    Employee <|-- Administrator
+
+    %% Internship Management
+    class Candidate {
+        <<aggregate root>>
+        +UUID id
+        +String nationalId
+        +String firstName
+        +String lastName
+        +String contactEmail
+        +String phone
+        +String address
+        +String university
+        +String speciality
+        +String diploma
+        +String cvFilePath
+        +String skills
+        +String languages
+    }
+    class InternshipApplication {
+        +UUID id
+        +String reference
+        +ApplicationStatus status
+        +Boolean submittedOnline
+        +LocalDate submissionDate
+    }
+    class Internship {
+        <<aggregate root>>
+        +UUID id
+        +String reference
+        +LocalDate startDate
+        +LocalDate endDate
+        +InternshipStatus status
+    }
+    class InternshipAssignment {
+        +UUID id
+        +LocalDate assignmentDate
+        +AssignmentStatus status
+    }
+
+    User "1" -- "0..1" Candidate : account
+    Candidate "1" -- "0..*" InternshipApplication : submits
+    Candidate "1" -- "0..*" Internship : owns
+    InternshipApplication "1" -- "0..1" Internship : approvedFrom
+
+    Internship "1" -- "1..*" InternshipAssignment : has
+    InternshipAssignment "0..*" -- "1" Department : within
+    InternshipAssignment "0..*" -- "1" Supervisor : supervisedBy
+
+    Employee "1" -- "0..*" InternshipAssignment : assignedBy
+    WorkflowAttachable <|.. InternshipApplication
+    WorkflowAttachable <|.. Internship
+
+    %% Workflow Engine
+    class Workflow {
+        <<aggregate root>>
+        +UUID id
+        +String name
+        +WorkflowStatus status
+    }
+    class WorkflowStep {
+        +UUID id
+        +String name
+        +Integer sequence
+    }
+    class WorkflowAction {
+        +UUID id
+        +WorkflowActionType type
+        +ApprovalDecision decision
+        +String comment
+        +String remarks
+        +String ipAddress
+        +LocalDateTime performedAt
+    }
+
+    Workflow "1" -- "1..*" WorkflowStep : contains
+    WorkflowStep "1" -- "0..*" WorkflowAction : requires
+
+    WorkflowAttachable "1" -- "0..*" Workflow : drives
+    User "1" -- "0..*" WorkflowAction : performedBy
+
+    %% Internship Companion
+    class InternshipJournal {
+        +UUID id
+        +LocalDate createdDate
+    }
+    class JournalEntry {
+        +UUID id
+        +String title
+        +String description
+        +JournalStatus status
+        +LocalDate entryDate
+    }
+    class Task {
+        +UUID id
+        +String title
+        +String description
+        +TaskStatus status
+        +LocalDate dueDate
+    }
+    class Deliverable {
+        +UUID id
+        +String title
+        +String description
+        +DeliverableStatus status
+        +String storageKey
+        +String bucket
+        +String objectId
+        +String checksum
+        +String mimeType
+        +Long size
+        +Integer version
+        +LocalDate submittedDate
+        +LocalDateTime validatedAt
+    }
+    class Evaluation {
+        +UUID id
+        +EvaluationType type
+        +LocalDate evaluationDate
+        +String feedback
+    }
+    class EvaluationCriterion {
+        <<aggregate root>>
+        +UUID id
+        +String name
+        +String description
+        +Double weight
+        +Double maxScore
+    }
+    class EvaluationScore {
+        +UUID id
+        +Double score
+        +String comment
+    }
+    class Comment {
+        +UUID id
+        +String content
+        +LocalDateTime createdAt
+    }
+
+    Internship "1" -- "1" InternshipJournal : owns
+    InternshipJournal "1" -- "1..*" JournalEntry : contains
+    Internship "1" -- "0..*" Task : has
+    Internship "1" -- "0..*" Deliverable : produces
+    Internship "1" -- "0..*" Evaluation : has
+
+    Evaluation "1" -- "0..*" EvaluationScore : contains
+    EvaluationCriterion "1" -- "0..*" EvaluationScore : measuredBy
+
+    Supervisor "1" -- "0..*" Evaluation : evaluates
+    Supervisor "1" -- "0..*" Comment : writes
+    Candidate "1" -- "0..*" Deliverable : submittedBy
+    Supervisor "1" -- "0..*" Deliverable : validatedBy
+
+    JournalEntry ..|> Commentable
+    Deliverable ..|> Commentable
+    Evaluation ..|> Commentable
+    Comment "0..*" -- "1" Commentable : targets
+
+    %% Document Management
+    class Document {
+        <<aggregate root>>
+        <<abstract>>
+        +UUID id
+        +String reference
+        +DocumentType type
+        +String storageKey
+        +String bucket
+        +String objectId
+        +String checksum
+        +String mimeType
+        +Long size
+        +Integer version
+        +Boolean generatedAutomatically
+        +LocalDate createdDate
+    }
+    class InternshipConvention {
+    }
+    class AssignmentLetter {
+    }
+    class InternshipCertificate {
+    }
+    class ApplicationDocument {
+        +String fileName
+        +Boolean mandatory
+    }
+
+    Document <|-- InternshipConvention
+    Document <|-- AssignmentLetter
+    Document <|-- InternshipCertificate
+    Document <|-- ApplicationDocument
+
+    Internship "1" -- "0..*" Document : owns
+    InternshipApplication "1" -- "0..*" ApplicationDocument : attaches
+
+    %% Communication
+    class Notification {
+        <<aggregate root>>
+        +UUID id
+        +String title
+        +String message
+        +NotificationType type
+        +NotificationPriority priority
+        +String relatedEntityType
+        +UUID relatedEntityId
+        +LocalDateTime sentAt
+        +LocalDateTime createdAt
+    }
+    class NotificationRecipient {
+        +UUID id
+        +RecipientType recipientType
+        +UUID recipientId
+        +Boolean read
+        +LocalDateTime readAt
+    }
+
+    Notification "1" -- "0..*" NotificationRecipient : sentTo
+
+    %% Financial Management
+    class Payment {
+        <<aggregate root>>
+        +UUID id
+        +String reference
+        +Decimal amount
+        +CurrencyCode currency
+        +PaymentStatus status
+        +PaymentMethod paymentMethod
+        +LocalDate paymentDate
+        +LocalDateTime approvedAt
+    }
+
+    Internship "1" -- "0..*" Payment : generates
+    Employee "1" -- "0..*" Payment : approvedBy
+    Payment ..|> WorkflowAttachable
