@@ -30,16 +30,19 @@ public class InternshipServiceImpl implements InternshipService {
     private final InternshipApplicationRepository applicationRepository;
 
     @Override
+    @Transactional(readOnly = true)
     public Page<InternshipResponse> getAllInternships(Pageable pageable) {
         return internshipRepository.findAll(pageable).map(this::toResponse);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Page<InternshipResponse> getInternshipsByStatus(InternshipStatus status, Pageable pageable) {
         return internshipRepository.findByStatus(status, pageable).map(this::toResponse);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public InternshipResponse getInternshipById(UUID id) {
         Internship internship = internshipRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Internship not found"));

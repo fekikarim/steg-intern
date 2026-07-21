@@ -12,12 +12,10 @@ import java.util.Set;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 public class Supervisor extends Employee {
 
     private String position;
 
     @OneToMany(mappedBy = "supervisor", fetch = FetchType.LAZY)
-    @Builder.Default
     private Set<tn.steg.backend.assignments.entity.InternshipAssignment> assignments = new HashSet<>();
 }

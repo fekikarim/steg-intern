@@ -14,7 +14,6 @@ import java.util.UUID;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 public abstract class Document {
 
     @Id
@@ -43,15 +42,13 @@ public abstract class Document {
 
     private Long size;
 
-    @Builder.Default
+    @Column(name = "version")
     private Integer version = 1;
 
     @Column(name = "generated_automatically")
-    @Builder.Default
     private Boolean generatedAutomatically = false;
 
     @Column(name = "created_date", nullable = false)
-    @Builder.Default
     private LocalDate createdDate = LocalDate.now();
 
     @ManyToOne(fetch = FetchType.LAZY)

@@ -6,9 +6,9 @@ spring:
     active: dev
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/steg_platform
-    username: ${DB_USERNAME:steg_user}
-    password: ${DB_PASSWORD:steg_password}
+    url: jdbc:postgresql://localhost:5432/steg_db
+    username: karimfeki
+    password: ''
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 20
@@ -18,8 +18,8 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: validate
-    show-sql: false
+      ddl-auto: update
+    show-sql: true
     open-in-view: false
     properties:
       hibernate:
@@ -32,10 +32,7 @@ spring:
         default_batch_fetch_size: 16
 
   flyway:
-    enabled: true
-    locations: classpath:db/migration
-    baseline-on-migrate: true
-    baseline-version: 0
+    enabled: false
 
   mail:
     host: ${MAIL_HOST:smtp.gmail.com}
@@ -64,15 +61,13 @@ server:
   servlet:
     context-path: /api/v1
 
-# JWT Configuration
 jwt:
-  secret: ${JWT_SECRET:your-256-bit-secret-key-for-hs256-algorithm-that-is-at-least-32-bytes}
+  secret: ${JWT_SECRET:our-256-bit-secret-key-for-hs256-algorithm-that-is-at-least-32-bytes-long}
   access-token:
-    expiration: 900000  # 15 minutes
+    expiration: 900000
   refresh-token:
-    expiration: 604800000  # 7 days
+    expiration: 604800000
 
-# OpenAPI / Swagger
 springdoc:
   api-docs:
     path: /api-docs
@@ -81,16 +76,19 @@ springdoc:
     tags-sorter: alpha
     operations-sorter: alpha
 
-# Logging
 logging:
   level:
-    tn.steg.backend: INFO
-    org.springframework.security: INFO
-    org.hibernate.SQL: WARN
+    tn:
+      steg:
+        backend: INFO
+    org:
+      springframework:
+        security: INFO
+      hibernate:
+        SQL: WARN
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
 
-# Actuator
 management:
   endpoints:
     web:
@@ -99,54 +97,3 @@ management:
   endpoint:
     health:
       show-details: when-authorized
-
----
-# Development Profile
-spring:
-  config:
-    activate:
-      on-profile: dev
-
-  jpa:
-    show-sql: true
-    hibernate:
-      ddl-auto: update
-
-  flyway:
-    enabled: false
-
----
-# Test Profile
-spring:
-  config:
-    activate:
-      on-profile: test
-
-  datasource:
-    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;MODE=POSTGRESQL
-    username: sa
-    password:
-    driver-class-name: org.h2.Driver
-
-  jpa:
-    hibernate:
-      ddl-auto: create-drop
-    database-platform: org.hibernate.dialect.H2Dialect
-
-  flyway:
-    enabled: false
-
----
-# Production Profile
-spring:
-  config:
-    activate:
-      on-profile: prod
-
-  jpa:
-    show-sql: false
-    hibernate:
-      ddl-auto: validate
-
-  flyway:
-    enabled: true

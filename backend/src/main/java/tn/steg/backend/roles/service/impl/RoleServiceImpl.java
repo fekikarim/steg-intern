@@ -26,6 +26,7 @@ public class RoleServiceImpl implements RoleService {
     private final PermissionRepository permissionRepository;
 
     @Override
+    @Transactional(readOnly = true)
     public List<RoleResponse> getAllRoles() {
         return roleRepository.findAll().stream()
                 .map(this::toResponse)
@@ -33,6 +34,7 @@ public class RoleServiceImpl implements RoleService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public RoleResponse getRoleById(UUID id) {
         Role role = roleRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Role not found with id: " + id));

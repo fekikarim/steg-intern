@@ -31,11 +31,13 @@ public class UserServiceImpl implements UserService {
     private final PasswordEncoder passwordEncoder;
 
     @Override
+    @Transactional(readOnly = true)
     public Page<UserResponse> getAllUsers(Pageable pageable) {
         return userRepository.findAll(pageable).map(this::toResponse);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public UserResponse getUserById(UUID id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));

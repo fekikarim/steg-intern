@@ -27,16 +27,19 @@ public class ApplicationServiceImpl implements ApplicationService {
     private final CandidateRepository candidateRepository;
 
     @Override
+    @Transactional(readOnly = true)
     public Page<ApplicationResponse> getAllApplications(Pageable pageable) {
         return applicationRepository.findAll(pageable).map(this::toResponse);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Page<ApplicationResponse> getApplicationsByStatus(ApplicationStatus status, Pageable pageable) {
         return applicationRepository.findByStatus(status, pageable).map(this::toResponse);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public ApplicationResponse getApplicationById(UUID id) {
         InternshipApplication app = applicationRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Application not found"));

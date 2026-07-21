@@ -21,11 +21,13 @@ public class CandidateServiceImpl implements CandidateService {
     private final CandidateRepository candidateRepository;
 
     @Override
+    @Transactional(readOnly = true)
     public Page<CandidateResponse> getAllCandidates(Pageable pageable) {
         return candidateRepository.findAll(pageable).map(this::toResponse);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public CandidateResponse getCandidateById(UUID id) {
         Candidate candidate = candidateRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Candidate not found"));
