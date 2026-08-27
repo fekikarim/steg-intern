@@ -18,8 +18,9 @@ public interface AuditService {
      * @param oldValue   a snapshot of the previous state (may be null)
      * @param newValue   a snapshot of the new state (may be null)
      * @param actorEmail the email of the acting user, if available (may be null)
+     * @param ipAddress  the client IP address (may be null)
      */
-    void record(String action, String entityName, UUID entityId, String oldValue, String newValue, String actorEmail);
+    void record(String action, String entityName, UUID entityId, String oldValue, String newValue, String actorEmail, String ipAddress);
 
     /**
      * Records an audit event without associating an entity.

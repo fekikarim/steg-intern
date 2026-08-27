@@ -4,8 +4,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
 import tn.steg.backend.users.entity.AuditLog;
 import tn.steg.backend.users.entity.User;
 import tn.steg.backend.users.repository.AuditLogRepository;
@@ -29,7 +27,7 @@ public class AuditServiceImpl implements AuditService {
 
     @Async("auditTaskExecutor")
     @Override
-    public void record(String action, String entityName, UUID entityId, String oldValue, String newValue, String actorEmail) {
+    public void record(String action, String entityName, UUID entityId, String oldValue, String newValue, String actorEmail, String ipAddress) {
         try {
             AuditLog entry = AuditLog.builder()
                     .action(action)
@@ -37,7 +35,7 @@ public class AuditServiceImpl implements AuditService {
                     .entityId(entityId)
                     .oldValue(oldValue)
                     .newValue(newValue)
-                    .ipAddress(resolveClientIp())
+                    .ipAddress(ipAddress)
                     .user(resolveActor(actorEmail))
                     .build();
             auditLogRepository.save(entry);
@@ -49,7 +47,7 @@ public class AuditServiceImpl implements AuditService {
 
     @Override
     public void record(String action, String entityName, String newValue, String actorEmail) {
-        record(action, entityName, null, null, newValue, actorEmail);
+        record(action, entityName, null, null, newValue, actorEmail, null);
     }
 
     /**
@@ -65,21 +63,5 @@ public class AuditServiceImpl implements AuditService {
         } catch (Exception ex) {
             return null;
         }
-    }
-
-    private String resolveClientIp() {
-        try {
-            if (RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attrs) {
-                var request = attrs.getRequest();
-                String forwarded = request.getHeader("X-Forwarded-For");
-                if (forwarded != null && !forwarded.isBlank()) {
-                    return forwarded.split(",")[0].trim();
-                }
-                return request.getRemoteAddr();
-            }
-        } catch (Exception ignored) {
-            // ignore
-        }
-        return null;
     }
 }

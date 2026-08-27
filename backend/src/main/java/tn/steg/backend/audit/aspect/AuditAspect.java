@@ -50,7 +50,7 @@ public class AuditAspect {
             String newValue = toJson(eval(audited.newValue(), context));
             String oldValue = toJson(eval(audited.oldValue(), context));
 
-            auditService.record(audited.action(), audited.entity(), entityId, oldValue, newValue, resolveActor());
+            auditService.record(audited.action(), audited.entity(), entityId, oldValue, newValue, resolveActor(), resolveClientIp());
         } catch (Exception ex) {
             // Audit capture must never break the business operation.
         }
@@ -64,6 +64,24 @@ public class AuditAspect {
                 return null;
             }
             return currentUserService.currentEmail();
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
+    private String resolveClientIp() {
+        try {
+            jakarta.servlet.http.HttpServletRequest request = org.springframework.web.context.request.RequestContextHolder
+                    .getRequestAttributes() instanceof org.springframework.web.context.request.ServletRequestAttributes attrs
+                    ? attrs.getRequest() : null;
+            if (request == null) {
+                return null;
+            }
+            String forwarded = request.getHeader("X-Forwarded-For");
+            if (forwarded != null && !forwarded.isBlank()) {
+                return forwarded.split(",")[0].trim();
+            }
+            return request.getRemoteAddr();
         } catch (Exception ex) {
             return null;
         }
