@@ -10,6 +10,6 @@ export class UserService {
   private readonly config = inject(APP_CONFIG);
 
   getProfile(): Observable<UserProfile> {
-    return this.http.get<UserProfile>(`${this.config.apiBaseUrl}/users/me`);
+    return this.http.get<UserProfile>(`${this.config.apiBaseUrl}/auth/me`);
   }
 }

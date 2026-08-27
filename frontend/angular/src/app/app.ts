@@ -1,5 +1,6 @@
-import { Component, signal } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
+import { LoadingService } from './core/services/loading.service';
 
 @Component({
   selector: 'steg-root',
@@ -8,5 +9,7 @@ import { RouterOutlet } from '@angular/router';
   styleUrl: './app.scss'
 })
 export class App {
-  protected readonly title = signal('steg-back-office');
+  private readonly loading = inject(LoadingService);
+
+  protected readonly busy = this.loading.global;
 }
