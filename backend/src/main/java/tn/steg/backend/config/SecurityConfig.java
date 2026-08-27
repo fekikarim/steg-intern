@@ -19,6 +19,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 import tn.steg.backend.security.JwtAuthenticationFilter;
 
 @Configuration
@@ -32,6 +33,9 @@ public class SecurityConfig {
     @Value("${app.cors.allowed-origins:http://localhost:4200}")
     private String allowedOrigins;
 
+    @Value("${app.security.require-https:false}")
+    private boolean requireHttps;
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
@@ -39,13 +43,42 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/auth/**").permitAll()
+                        // Public authentication entry points.
+                        .requestMatchers("/auth/login", "/auth/refresh", "/auth/register",
+                                "/auth/forgot-password", "/auth/reset-password").permitAll()
+                        // Documentation / health.
                         .requestMatchers("/swagger-ui/**", "/api-docs/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        // Everything else requires authentication.
                         .anyRequest().authenticated()
                 )
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint((request, response, authException) ->
+                                response.sendError(jakarta.servlet.http.HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized"))
+                        .accessDeniedHandler((request, response, accessDenied) ->
+                                response.sendError(jakarta.servlet.http.HttpServletResponse.SC_FORBIDDEN, "Forbidden"))
+                )
+                .headers(headers -> {
+                    headers
+                            .contentSecurityPolicy(csp -> csp.policyDirectives(
+                                    "default-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"))
+                            .referrerPolicy(referrer ->
+                                    referrer.policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
+                            .httpStrictTransportSecurity(hsts -> {
+                                if (requireHttps) {
+                                    hsts.includeSubDomains(true).preload(true).maxAgeInSeconds(31536000);
+                                } else {
+                                    hsts.disable();
+                                }
+                            })
+                            .frameOptions(frame -> frame.deny());
+                });
+
+        if (requireHttps) {
+            http.requiresChannel(channel -> channel.anyRequest().requiresSecure());
+        }
 
         return http.build();
     }

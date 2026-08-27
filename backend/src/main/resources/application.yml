@@ -71,6 +71,16 @@ jwt:
 app:
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:4200}
+  security:
+    max-failed-login-attempts: 5
+    lockout-duration: 15m
+    password-reset-token-ttl: 15m
+    require-https: false
+  rate-limit:
+    enabled: true
+    default-per-minute: 100
+    auth-per-minute: 10
+    sensitive-per-minute: 5
 
 springdoc:
   api-docs:

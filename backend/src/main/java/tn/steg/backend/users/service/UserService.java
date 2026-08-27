@@ -16,4 +16,6 @@ public interface UserService {
     UserResponse createUser(CreateUserRequest request);
     UserResponse updateUser(UUID id, UpdateUserRequest request);
     void deleteUser(UUID id);
+    void unlockUser(UUID id);
+    void lockUser(UUID id);
 }

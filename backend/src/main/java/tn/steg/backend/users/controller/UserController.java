@@ -67,4 +67,20 @@ public class UserController {
         userService.deleteUser(id);
         return ResponseEntity.noContent().build();
     }
+
+    @PostMapping("/{id}/unlock")
+    @PreAuthorize("hasRole('ADMINISTRATOR')")
+    @Operation(summary = "Unlock user", description = "Unlock a user account and clear failed login attempts")
+    public ResponseEntity<Void> unlockUser(@PathVariable UUID id) {
+        userService.unlockUser(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/lock")
+    @PreAuthorize("hasRole('ADMINISTRATOR')")
+    @Operation(summary = "Lock user", description = "Manually lock a user account and revoke active sessions")
+    public ResponseEntity<Void> lockUser(@PathVariable UUID id) {
+        userService.lockUser(id);
+        return ResponseEntity.noContent().build();
+    }
 }

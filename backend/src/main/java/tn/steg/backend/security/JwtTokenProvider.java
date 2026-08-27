@@ -1,6 +1,8 @@
 package tn.steg.backend.security;
 
-import io.jsonwebtoken.*;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -28,26 +30,36 @@ public class JwtTokenProvider {
         return Keys.hmacShaKeyFor(jwtSecret.getBytes());
     }
 
+    /** Access token from an authenticated principal (login flow). */
     public String generateAccessToken(Authentication authentication) {
         UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+        return generateAccessToken(userDetails.getUsername());
+    }
+
+    /** Access token from a subject (email). */
+    public String generateAccessToken(String username) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + accessTokenExpiration);
-
         return Jwts.builder()
-                .subject(userDetails.getUsername())
+                .subject(username)
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(getSigningKey())
                 .compact();
     }
 
+    /** Refresh token from an authenticated principal (login flow). */
     public String generateRefreshToken(Authentication authentication) {
         UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+        return generateRefreshToken(userDetails.getUsername());
+    }
+
+    /** Refresh token from a subject (email). */
+    public String generateRefreshToken(String username) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + refreshTokenExpiration);
-
         return Jwts.builder()
-                .subject(userDetails.getUsername())
+                .subject(username)
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(getSigningKey())

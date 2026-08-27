@@ -6,18 +6,20 @@ import tn.steg.backend.common.BaseEntity;
 
 import java.time.LocalDateTime;
 
+/**
+ * Short-lived token used to verify the owner of an account before a password
+ * reset. Single use and time-boxed to prevent replay.
+ */
 @Entity
-@Table(name = "refresh_tokens", uniqueConstraints = {
-        @UniqueConstraint(name = "uk_refresh_tokens_token", columnNames = "token")
-})
+@Table(name = "password_reset_tokens")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class RefreshToken extends BaseEntity {
+public class PasswordResetToken extends BaseEntity {
 
-    @Column(nullable = false)
+    @Column(name = "token", nullable = false, unique = true)
     private String token;
 
     @Column(name = "expiry_date", nullable = false)
@@ -25,12 +27,13 @@ public class RefreshToken extends BaseEntity {
 
     @Column(nullable = false)
     @Builder.Default
-    private Boolean revoked = false;
-
-    @Column(name = "created_by_ip")
-    private String createdByIp;
+    private Boolean used = false;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
+
+    public boolean isExpired() {
+        return expiryDate.isBefore(LocalDateTime.now());
+    }
 }

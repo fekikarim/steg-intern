@@ -1,7 +1,13 @@
 package tn.steg.backend.exception;
 
-public class ResourceNotFoundException extends RuntimeException {
+import tn.steg.backend.common.ApiErrorCode;
+
+/**
+ * Thrown when a requested resource does not exist. Maps to HTTP 404.
+ */
+public class ResourceNotFoundException extends BaseException {
+
     public ResourceNotFoundException(String message) {
-        super(message);
+        super(ApiErrorCode.RESOURCE_NOT_FOUND, message);
     }
 }

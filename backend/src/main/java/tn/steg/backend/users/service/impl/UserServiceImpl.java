@@ -9,6 +9,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tn.steg.backend.audit.annotation.Audited;
 import tn.steg.backend.exception.BusinessException;
 import tn.steg.backend.exception.ResourceNotFoundException;
 import tn.steg.backend.users.dto.CreateUserRequest;
@@ -20,6 +21,7 @@ import tn.steg.backend.users.entity.Role;
 import tn.steg.backend.users.entity.User;
 import tn.steg.backend.users.entity.UserStatus;
 import tn.steg.backend.users.repository.RoleRepository;
+import tn.steg.backend.users.repository.RefreshTokenRepository;
 import tn.steg.backend.users.repository.UserRepository;
 import tn.steg.backend.users.service.UserService;
 
@@ -35,6 +37,7 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
+    private final RefreshTokenRepository refreshTokenRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -62,6 +65,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
+    @Audited(action = "CREATE", entity = "USER", entityId = "#result.id", newValue = "#result")
     public UserResponse createUser(CreateUserRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new BusinessException("Email already exists");
@@ -83,6 +87,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
+    @Audited(action = "UPDATE", entity = "USER", entityId = "#args[0]", oldValue = "#args[0]", newValue = "#result")
     public UserResponse updateUser(UUID id, UpdateUserRequest request) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
@@ -104,11 +109,36 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
+    @Audited(action = "DELETE", entity = "USER", entityId = "#args[0]")
     public void deleteUser(UUID id) {
         if (!userRepository.existsById(id)) {
             throw new ResourceNotFoundException("User not found with id: " + id);
         }
         userRepository.deleteById(id);
+    }
+
+    @Override
+    @Transactional
+    @Audited(action = "UNLOCK", entity = "USER", entityId = "#args[0]")
+    public void unlockUser(UUID id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
+        user.setFailedLoginAttempts(0);
+        user.setLockedUntil(null);
+        user.setStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+    }
+
+    @Override
+    @Transactional
+    @Audited(action = "LOCK", entity = "USER", entityId = "#args[0]")
+    public void lockUser(UUID id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
+        user.setStatus(UserStatus.LOCKED);
+        user.setLockedUntil(null);
+        userRepository.save(user);
+        refreshTokenRepository.revokeAllActiveForUser(id);
     }
 
     private UserProfileResponse toProfileResponse(User user) {

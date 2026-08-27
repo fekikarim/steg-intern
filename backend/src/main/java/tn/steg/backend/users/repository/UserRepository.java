@@ -3,6 +3,7 @@ package tn.steg.backend.users.repository;
 import org.springframework.data.jpa.repository.JpaRepository;
 import tn.steg.backend.users.entity.User;
 import tn.steg.backend.users.entity.UserStatus;
+
 import java.util.Optional;
 import java.util.UUID;
 
