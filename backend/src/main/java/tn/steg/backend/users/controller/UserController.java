@@ -12,6 +12,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import tn.steg.backend.users.dto.CreateUserRequest;
 import tn.steg.backend.users.dto.UpdateUserRequest;
+import tn.steg.backend.users.dto.UserProfileResponse;
 import tn.steg.backend.users.dto.UserResponse;
 import tn.steg.backend.users.service.UserService;
 
@@ -24,6 +25,12 @@ import java.util.UUID;
 public class UserController {
 
     private final UserService userService;
+
+    @GetMapping("/me")
+    @Operation(summary = "Get current user profile", description = "Retrieve the authenticated user's profile with role and permissions")
+    public ResponseEntity<UserProfileResponse> getCurrentUserProfile() {
+        return ResponseEntity.ok(userService.getCurrentUserProfile());
+    }
 
     @GetMapping
     @PreAuthorize("hasRole('ADMINISTRATOR')")
