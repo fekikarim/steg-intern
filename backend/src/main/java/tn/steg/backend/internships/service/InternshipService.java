@@ -7,11 +7,13 @@ import tn.steg.backend.internships.dto.DashboardStats;
 import tn.steg.backend.internships.dto.InternshipResponse;
 import tn.steg.backend.internships.entity.InternshipStatus;
 
+import java.util.List;
 import java.util.UUID;
 
 public interface InternshipService {
     Page<InternshipResponse> getAllInternships(InternshipStatus status, String search, Pageable pageable);
     InternshipResponse getInternshipById(UUID id);
+    List<InternshipResponse> getMyInternships();
     InternshipResponse createInternship(CreateInternshipRequest request);
     InternshipResponse updateStatus(UUID id, InternshipStatus status);
     DashboardStats getDashboardStats();

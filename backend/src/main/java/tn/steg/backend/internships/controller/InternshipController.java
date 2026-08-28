@@ -16,6 +16,7 @@ import tn.steg.backend.internships.dto.InternshipResponse;
 import tn.steg.backend.internships.entity.InternshipStatus;
 import tn.steg.backend.internships.service.InternshipService;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -48,6 +49,13 @@ public class InternshipController {
     @Operation(summary = "Get internship by ID")
     public ResponseEntity<InternshipResponse> getInternshipById(@PathVariable UUID id) {
         return ResponseEntity.ok(internshipService.getInternshipById(id));
+    }
+
+    @GetMapping("/mine")
+    @PreAuthorize("hasAnyRole('CANDIDATE')")
+    @Operation(summary = "Get the current candidate's internships")
+    public ResponseEntity<List<InternshipResponse>> getMyInternships() {
+        return ResponseEntity.ok(internshipService.getMyInternships());
     }
 
     @PostMapping

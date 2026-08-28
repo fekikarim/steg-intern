@@ -40,7 +40,7 @@ public class AssignmentController {
     }
 
     @GetMapping("/internship/{internshipId}")
-    @PreAuthorize("hasAnyRole('ADMINISTRATOR', 'HR_MANAGER', 'SUPERVISOR')")
+    @PreAuthorize("hasAnyRole('ADMINISTRATOR', 'HR_MANAGER', 'SUPERVISOR', 'CANDIDATE')")
     @Operation(summary = "Get assignments by internship")
     public ResponseEntity<List<AssignmentResponse>> getByInternship(@PathVariable UUID internshipId) {
         return ResponseEntity.ok(assignmentService.getAssignmentsByInternship(internshipId));

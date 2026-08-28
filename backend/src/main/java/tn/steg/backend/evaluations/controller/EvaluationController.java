@@ -24,7 +24,7 @@ public class EvaluationController {
     private final EvaluationService evaluationService;
 
     @GetMapping("/internship/{internshipId}")
-    @PreAuthorize("hasAnyRole('ADMINISTRATOR', 'HR_MANAGER', 'SUPERVISOR', 'DIRECTOR')")
+    @PreAuthorize("hasAnyRole('ADMINISTRATOR', 'HR_MANAGER', 'SUPERVISOR', 'DIRECTOR', 'CANDIDATE')")
     @Operation(summary = "Get evaluations by internship")
     public ResponseEntity<List<EvaluationResponse>> getByInternship(@PathVariable UUID internshipId) {
         return ResponseEntity.ok(evaluationService.getEvaluationsByInternship(internshipId));

@@ -16,4 +16,5 @@ public interface InternshipRepository extends JpaRepository<Internship, UUID>, J
     Page<Internship> findByStatus(InternshipStatus status, Pageable pageable);
     long countByStatus(InternshipStatus status);
     List<Internship> findByCandidateIdAndStatusIn(UUID candidateId, Collection<InternshipStatus> statuses);
+    List<Internship> findByCandidateId(UUID candidateId);
 }

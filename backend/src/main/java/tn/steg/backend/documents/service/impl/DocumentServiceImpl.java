@@ -11,6 +11,7 @@ import tn.steg.backend.documents.service.DocumentService;
 import tn.steg.backend.exception.ResourceNotFoundException;
 import tn.steg.backend.internships.entity.Internship;
 import tn.steg.backend.internships.repository.InternshipRepository;
+import tn.steg.backend.security.InternOwnershipService;
 
 import java.util.List;
 import java.util.UUID;
@@ -22,10 +23,12 @@ public class DocumentServiceImpl implements DocumentService {
 
     private final DocumentRepository documentRepository;
     private final InternshipRepository internshipRepository;
+    private final InternOwnershipService internOwnershipService;
 
     @Override
     @Transactional(readOnly = true)
     public List<DocumentResponse> getDocumentsByInternship(UUID internshipId) {
+        internOwnershipService.assertInternshipOwnership(internshipId);
         return documentRepository.findByInternshipId(internshipId).stream()
                 .map(this::toResponse).collect(Collectors.toList());
     }

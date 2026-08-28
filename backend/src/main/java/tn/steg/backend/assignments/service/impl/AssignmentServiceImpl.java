@@ -21,6 +21,7 @@ import tn.steg.backend.exception.ResourceNotFoundException;
 import tn.steg.backend.internships.entity.Internship;
 import tn.steg.backend.internships.entity.InternshipStatus;
 import tn.steg.backend.internships.repository.InternshipRepository;
+import tn.steg.backend.security.InternOwnershipService;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -38,6 +39,7 @@ public class AssignmentServiceImpl implements AssignmentService {
     private final DepartmentRepository departmentRepository;
     private final SupervisorRepository supervisorRepository;
     private final EmployeeRepository employeeRepository;
+    private final InternOwnershipService internOwnershipService;
 
     /**
      * Explicit assignment state machine. Illegal transitions are rejected.
@@ -71,6 +73,7 @@ public class AssignmentServiceImpl implements AssignmentService {
     @Override
     @Transactional(readOnly = true)
     public List<AssignmentResponse> getAssignmentsByInternship(UUID internshipId) {
+        internOwnershipService.assertInternshipOwnership(internshipId);
         return assignmentRepository.findByInternshipId(internshipId).stream()
                 .map(this::toResponse).collect(Collectors.toList());
     }

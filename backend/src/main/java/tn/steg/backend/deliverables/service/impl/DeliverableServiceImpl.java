@@ -15,6 +15,7 @@ import tn.steg.backend.exception.BusinessException;
 import tn.steg.backend.exception.ResourceNotFoundException;
 import tn.steg.backend.internships.entity.Internship;
 import tn.steg.backend.internships.repository.InternshipRepository;
+import tn.steg.backend.security.InternOwnershipService;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -30,10 +31,12 @@ public class DeliverableServiceImpl implements DeliverableService {
     private final InternshipRepository internshipRepository;
     private final CandidateRepository candidateRepository;
     private final SupervisorRepository supervisorRepository;
+    private final InternOwnershipService internOwnershipService;
 
     @Override
     @Transactional(readOnly = true)
     public List<DeliverableResponse> getDeliverablesByInternship(UUID internshipId) {
+        internOwnershipService.assertInternshipOwnership(internshipId);
         return deliverableRepository.findByInternshipId(internshipId).stream()
                 .map(this::toResponse).collect(Collectors.toList());
     }

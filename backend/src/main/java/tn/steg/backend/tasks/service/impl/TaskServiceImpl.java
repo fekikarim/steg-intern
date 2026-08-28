@@ -12,6 +12,7 @@ import tn.steg.backend.tasks.entity.Task;
 import tn.steg.backend.tasks.entity.TaskStatus;
 import tn.steg.backend.tasks.repository.TaskRepository;
 import tn.steg.backend.tasks.service.TaskService;
+import tn.steg.backend.security.InternOwnershipService;
 
 import java.util.List;
 import java.util.UUID;
@@ -23,10 +24,12 @@ public class TaskServiceImpl implements TaskService {
 
     private final TaskRepository taskRepository;
     private final InternshipRepository internshipRepository;
+    private final InternOwnershipService internOwnershipService;
 
     @Override
     @Transactional(readOnly = true)
     public List<TaskResponse> getTasksByInternship(UUID internshipId) {
+        internOwnershipService.assertInternshipOwnership(internshipId);
         return taskRepository.findByInternshipId(internshipId).stream()
                 .map(this::toResponse).collect(Collectors.toList());
     }

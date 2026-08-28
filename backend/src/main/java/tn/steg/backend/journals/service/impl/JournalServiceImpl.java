@@ -16,6 +16,7 @@ import tn.steg.backend.journals.entity.JournalStatus;
 import tn.steg.backend.journals.repository.InternshipJournalRepository;
 import tn.steg.backend.journals.repository.JournalEntryRepository;
 import tn.steg.backend.journals.service.JournalService;
+import tn.steg.backend.security.InternOwnershipService;
 
 import java.time.LocalDate;
 import java.util.UUID;
@@ -28,10 +29,12 @@ public class JournalServiceImpl implements JournalService {
     private final InternshipJournalRepository journalRepository;
     private final JournalEntryRepository entryRepository;
     private final InternshipRepository internshipRepository;
+    private final InternOwnershipService internOwnershipService;
 
     @Override
     @Transactional(readOnly = true)
     public JournalResponse getJournalByInternship(UUID internshipId) {
+        internOwnershipService.assertInternshipOwnership(internshipId);
         InternshipJournal journal = journalRepository.findByInternshipId(internshipId)
                 .orElseThrow(() -> new ResourceNotFoundException("Journal not found for this internship"));
         return toResponse(journal);

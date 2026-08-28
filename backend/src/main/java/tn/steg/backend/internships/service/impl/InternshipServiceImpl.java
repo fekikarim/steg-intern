@@ -23,6 +23,7 @@ import tn.steg.backend.internships.entity.Internship;
 import tn.steg.backend.internships.entity.InternshipStatus;
 import tn.steg.backend.internships.repository.InternshipRepository;
 import tn.steg.backend.internships.service.InternshipService;
+import tn.steg.backend.security.InternOwnershipService;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -38,6 +39,7 @@ public class InternshipServiceImpl implements InternshipService {
     private final InternshipRepository internshipRepository;
     private final CandidateRepository candidateRepository;
     private final InternshipApplicationRepository applicationRepository;
+    private final InternOwnershipService internOwnershipService;
 
     /**
      * Explicit internship state machine. Illegal transitions are rejected.
@@ -66,6 +68,16 @@ public class InternshipServiceImpl implements InternshipService {
         Internship internship = internshipRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Internship not found"));
         return toResponse(internship);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<InternshipResponse> getMyInternships() {
+        Candidate self = internOwnershipService.currentCandidateIfSelf()
+                .orElseThrow(() -> new BusinessException("Only candidates can list their own internships"));
+        return internshipRepository.findByCandidateId(self.getId()).stream()
+                .map(this::toResponse)
+                .toList();
     }
 
     @Override

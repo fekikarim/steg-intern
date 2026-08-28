@@ -18,6 +18,7 @@ import tn.steg.backend.evaluations.service.EvaluationService;
 import tn.steg.backend.exception.ResourceNotFoundException;
 import tn.steg.backend.internships.entity.Internship;
 import tn.steg.backend.internships.repository.InternshipRepository;
+import tn.steg.backend.security.InternOwnershipService;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -33,10 +34,12 @@ public class EvaluationServiceImpl implements EvaluationService {
     private final EvaluationScoreRepository scoreRepository;
     private final InternshipRepository internshipRepository;
     private final SupervisorRepository supervisorRepository;
+    private final InternOwnershipService internOwnershipService;
 
     @Override
     @Transactional(readOnly = true)
     public List<EvaluationResponse> getEvaluationsByInternship(UUID internshipId) {
+        internOwnershipService.assertInternshipOwnership(internshipId);
         return evaluationRepository.findByInternshipId(internshipId).stream()
                 .map(this::toResponse).collect(Collectors.toList());
     }
