@@ -24,6 +24,21 @@ public class AssignmentController {
 
     private final AssignmentService assignmentService;
 
+    @GetMapping
+    @PreAuthorize("hasAnyRole('ADMINISTRATOR', 'HR_MANAGER')")
+    @Operation(summary = "Get all assignments", description = "Optionally filter by status")
+    public ResponseEntity<List<AssignmentResponse>> getAllAssignments(
+            @RequestParam(required = false) AssignmentStatus status) {
+        return ResponseEntity.ok(assignmentService.getAllAssignments(status));
+    }
+
+    @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMINISTRATOR', 'HR_MANAGER', 'SUPERVISOR')")
+    @Operation(summary = "Get assignment by ID")
+    public ResponseEntity<AssignmentResponse> getById(@PathVariable UUID id) {
+        return ResponseEntity.ok(assignmentService.getAssignmentById(id));
+    }
+
     @GetMapping("/internship/{internshipId}")
     @PreAuthorize("hasAnyRole('ADMINISTRATOR', 'HR_MANAGER', 'SUPERVISOR')")
     @Operation(summary = "Get assignments by internship")
@@ -57,5 +72,13 @@ public class AssignmentController {
     @Operation(summary = "Update assignment status")
     public ResponseEntity<AssignmentResponse> updateStatus(@PathVariable UUID id, @RequestParam AssignmentStatus status) {
         return ResponseEntity.ok(assignmentService.updateStatus(id, status));
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMINISTRATOR', 'HR_MANAGER')")
+    @Operation(summary = "Delete assignment")
+    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+        assignmentService.deleteAssignment(id);
+        return ResponseEntity.noContent().build();
     }
 }

@@ -8,9 +8,12 @@ import java.util.List;
 import java.util.UUID;
 
 public interface AssignmentService {
+    List<AssignmentResponse> getAllAssignments(AssignmentStatus status);
+    AssignmentResponse getAssignmentById(UUID id);
     List<AssignmentResponse> getAssignmentsByInternship(UUID internshipId);
     List<AssignmentResponse> getAssignmentsBySupervisor(UUID supervisorId);
     List<AssignmentResponse> getAssignmentsByDepartment(UUID departmentId);
     AssignmentResponse createAssignment(CreateAssignmentRequest request);
     AssignmentResponse updateStatus(UUID id, AssignmentStatus status);
+    void deleteAssignment(UUID id);
 }

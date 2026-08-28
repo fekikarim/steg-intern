@@ -17,6 +17,7 @@ import tn.steg.backend.candidates.repository.CandidateRepository;
 import tn.steg.backend.exception.BusinessException;
 import tn.steg.backend.exception.ResourceNotFoundException;
 import tn.steg.backend.internships.dto.CreateInternshipRequest;
+import tn.steg.backend.internships.dto.DashboardStats;
 import tn.steg.backend.internships.dto.InternshipResponse;
 import tn.steg.backend.internships.entity.Internship;
 import tn.steg.backend.internships.entity.InternshipStatus;
@@ -115,6 +116,51 @@ public class InternshipServiceImpl implements InternshipService {
         checkTransition(internship, status);
         internship.setStatus(status);
         return toResponse(internshipRepository.save(internship));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public DashboardStats getDashboardStats() {
+        List<Internship> all = internshipRepository.findAll();
+        LocalDate today = LocalDate.now();
+        LocalDate horizon = today.plusDays(30);
+
+        long planned = 0, active = 0, completed = 0, cancelled = 0, archived = 0;
+        long upcomingStarts = 0, upcomingEndings = 0, pendingAssignments = 0;
+
+        for (Internship i : all) {
+            switch (i.getStatus()) {
+                case PLANNED -> planned++;
+                case ACTIVE -> active++;
+                case COMPLETED -> completed++;
+                case CANCELLED -> cancelled++;
+                case ARCHIVED -> archived++;
+            }
+            boolean nonTerminal = i.getStatus() == InternshipStatus.PLANNED || i.getStatus() == InternshipStatus.ACTIVE;
+            if (nonTerminal) {
+                if (!i.getStartDate().isBefore(today) && !i.getStartDate().isAfter(horizon)) {
+                    upcomingStarts++;
+                }
+                if (!i.getEndDate().isBefore(today) && !i.getEndDate().isAfter(horizon) && i.getStatus() == InternshipStatus.ACTIVE) {
+                    upcomingEndings++;
+                }
+                if (i.getAssignments() == null || i.getAssignments().isEmpty()) {
+                    pendingAssignments++;
+                }
+            }
+        }
+
+        return DashboardStats.builder()
+                .totalInternships(all.size())
+                .planned(planned)
+                .active(active)
+                .completed(completed)
+                .cancelled(cancelled)
+                .archived(archived)
+                .upcomingStarts(upcomingStarts)
+                .upcomingEndings(upcomingEndings)
+                .pendingAssignments(pendingAssignments)
+                .build();
     }
 
     private void assertNoCalendarConflict(Candidate candidate, LocalDate start, LocalDate end) {

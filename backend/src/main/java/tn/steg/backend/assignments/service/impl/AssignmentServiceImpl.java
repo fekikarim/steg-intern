@@ -54,6 +54,22 @@ public class AssignmentServiceImpl implements AssignmentService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<AssignmentResponse> getAllAssignments(AssignmentStatus status) {
+        return assignmentRepository.findAll().stream()
+                .filter(a -> status == null || a.getStatus() == status)
+                .map(this::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public AssignmentResponse getAssignmentById(UUID id) {
+        return toResponse(assignmentRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Assignment not found")));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<AssignmentResponse> getAssignmentsByInternship(UUID internshipId) {
         return assignmentRepository.findByInternshipId(internshipId).stream()
                 .map(this::toResponse).collect(Collectors.toList());
@@ -133,6 +149,16 @@ public class AssignmentServiceImpl implements AssignmentService {
         }
         assignment.setStatus(status);
         return toResponse(assignmentRepository.save(assignment));
+    }
+
+    @Override
+    @Transactional
+    @Audited(action = "DELETE", entity = "ASSIGNMENT", entityId = "#args[0]")
+    public void deleteAssignment(UUID id) {
+        if (!assignmentRepository.existsById(id)) {
+            throw new ResourceNotFoundException("Assignment not found");
+        }
+        assignmentRepository.deleteById(id);
     }
 
     private AssignmentResponse toResponse(InternshipAssignment a) {

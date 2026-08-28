@@ -462,6 +462,42 @@ export class MainLayoutComponent {
     { label: 'Users', route: [APP_ROUTES.users], icon: '👥', requires: { permission: PERMISSIONS.USER_READ } },
     { label: 'Roles', route: [APP_ROUTES.roles], icon: '🛡️', requires: { permission: PERMISSIONS.ROLE_READ } },
     {
+      label: 'Candidates',
+      route: [APP_ROUTES.candidates],
+      icon: '👤',
+      requires: { permission: PERMISSIONS.CANDIDATE_READ }
+    },
+    {
+      label: 'Applications',
+      route: [APP_ROUTES.applications],
+      icon: '📨',
+      requires: { permission: PERMISSIONS.APPLICATION_READ }
+    },
+    {
+      label: 'Internship dashboard',
+      route: [APP_ROUTES.internshipDashboard],
+      icon: '📊',
+      requires: { permission: PERMISSIONS.INTERNSHIP_READ }
+    },
+    {
+      label: 'Internships',
+      route: [APP_ROUTES.internships],
+      icon: '🎓',
+      requires: { permission: PERMISSIONS.INTERNSHIP_READ }
+    },
+    {
+      label: 'Assignments',
+      route: [APP_ROUTES.assignments],
+      icon: '🔗',
+      requires: { permission: PERMISSIONS.ASSIGNMENT_READ }
+    },
+    {
+      label: 'Supervisors',
+      route: [APP_ROUTES.supervisors],
+      icon: '🧑‍🏫',
+      requires: { permission: PERMISSIONS.INTERNSHIP_READ }
+    },
+    {
       label: 'Departments',
       route: [APP_ROUTES.departments],
       icon: '🏢',

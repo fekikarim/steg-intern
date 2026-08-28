@@ -29,6 +29,20 @@ export interface UpdateRoleRequest {
   permissionIds: string[];
 }
 
+export interface CreateCandidateRequest {
+  nationalId?: string;
+  firstName: string;
+  lastName: string;
+  contactEmail: string;
+  phone?: string;
+  address?: string;
+  university?: string;
+  speciality?: string;
+  diploma?: string;
+  skills?: string;
+  languages?: string;
+}
+
 export interface DepartmentResponse {
   id: string;
   code: string;

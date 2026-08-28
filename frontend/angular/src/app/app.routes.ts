@@ -88,6 +88,48 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/audit/audit-viewer.component').then((m) => m.AuditViewerComponent),
         data: { title: 'Audit log', roles: ['ADMINISTRATOR'] }
+      },
+      {
+        path: APP_ROUTES.internshipDashboard,
+        canActivate: [permissionGuard],
+        loadComponent: () =>
+          import('./features/internships/internship-dashboard.component').then((m) => m.InternshipDashboardComponent),
+        data: { title: 'Internship dashboard', permission: PERMISSIONS.INTERNSHIP_READ }
+      },
+      {
+        path: APP_ROUTES.candidates,
+        canActivate: [permissionGuard],
+        loadComponent: () =>
+          import('./features/candidates/candidate-list.component').then((m) => m.CandidateListComponent),
+        data: { title: 'Candidates', permission: PERMISSIONS.CANDIDATE_READ }
+      },
+      {
+        path: APP_ROUTES.applications,
+        canActivate: [permissionGuard],
+        loadComponent: () =>
+          import('./features/applications/application-list.component').then((m) => m.ApplicationListComponent),
+        data: { title: 'Applications', permission: PERMISSIONS.APPLICATION_READ }
+      },
+      {
+        path: APP_ROUTES.internships,
+        canActivate: [permissionGuard],
+        loadComponent: () =>
+          import('./features/internships/internship-list.component').then((m) => m.InternshipListComponent),
+        data: { title: 'Internships', permission: PERMISSIONS.INTERNSHIP_READ }
+      },
+      {
+        path: APP_ROUTES.assignments,
+        canActivate: [permissionGuard],
+        loadComponent: () =>
+          import('./features/assignments/assignment-list.component').then((m) => m.AssignmentListComponent),
+        data: { title: 'Assignments', permission: PERMISSIONS.ASSIGNMENT_READ }
+      },
+      {
+        path: APP_ROUTES.supervisors,
+        canActivate: [permissionGuard],
+        loadComponent: () =>
+          import('./features/supervisors/supervisor-list.component').then((m) => m.SupervisorListComponent),
+        data: { title: 'Supervisors', permission: PERMISSIONS.INTERNSHIP_READ }
       }
     ]
   },

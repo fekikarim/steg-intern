@@ -15,6 +15,7 @@ import tn.steg.backend.applications.entity.InternshipApplication;
 import tn.steg.backend.applications.repository.InternshipApplicationRepository;
 import tn.steg.backend.applications.service.ApplicationService;
 import tn.steg.backend.audit.annotation.Audited;
+import tn.steg.backend.candidates.dto.CreateCandidateRequest;
 import tn.steg.backend.candidates.entity.Candidate;
 import tn.steg.backend.candidates.repository.CandidateRepository;
 import tn.steg.backend.exception.BusinessException;
@@ -64,8 +65,7 @@ public class ApplicationServiceImpl implements ApplicationService {
     @Transactional
     @Audited(action = "CREATE", entity = "APPLICATION", entityId = "#result.id", newValue = "#result")
     public ApplicationResponse createApplication(CreateApplicationRequest request) {
-        Candidate candidate = candidateRepository.findById(request.getCandidateId())
-                .orElseThrow(() -> new ResourceNotFoundException("Candidate not found"));
+        Candidate candidate = resolveCandidate(request);
 
         boolean submittedOnline = request.getSubmittedOnline() != null && request.getSubmittedOnline();
 
@@ -77,6 +77,57 @@ public class ApplicationServiceImpl implements ApplicationService {
                 .build();
 
         return toResponse(applicationRepository.save(application));
+    }
+
+    /**
+     * Resolves the candidate for an application. Supports two modes:
+     * (1) an existing candidate referenced by candidateId, or
+     * (2) inline candidate data that is created on the fly (physical / manual submissions).
+     */
+    private Candidate resolveCandidate(CreateApplicationRequest request) {
+        if (request.getCandidateId() != null) {
+            return candidateRepository.findById(request.getCandidateId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Candidate not found"));
+        }
+        CreateCandidateRequest inline = request.getCandidate();
+        if (inline == null || inline.getFirstName() == null || inline.getLastName() == null || inline.getContactEmail() == null) {
+            throw new BusinessException("Either candidateId or inline candidate details are required");
+        }
+        assertEmailUnique(inline.getContactEmail(), null);
+        assertNationalIdUnique(inline.getNationalId(), null);
+
+        Candidate candidate = Candidate.builder()
+                .nationalId(inline.getNationalId())
+                .firstName(inline.getFirstName())
+                .lastName(inline.getLastName())
+                .contactEmail(inline.getContactEmail())
+                .phone(inline.getPhone())
+                .address(inline.getAddress())
+                .university(inline.getUniversity())
+                .speciality(inline.getSpeciality())
+                .diploma(inline.getDiploma())
+                .skills(inline.getSkills())
+                .languages(inline.getLanguages())
+                .build();
+        return candidateRepository.save(candidate);
+    }
+
+    private void assertEmailUnique(String email, UUID currentId) {
+        if (email == null || email.isBlank()) return;
+        candidateRepository.findByContactEmail(email.trim()).ifPresent(existing -> {
+            if (currentId == null || !existing.getId().equals(currentId)) {
+                throw new BusinessException("A candidate with this email already exists");
+            }
+        });
+    }
+
+    private void assertNationalIdUnique(String nationalId, UUID currentId) {
+        if (nationalId == null || nationalId.isBlank()) return;
+        candidateRepository.findByNationalId(nationalId.trim()).ifPresent(existing -> {
+            if (currentId == null || !existing.getId().equals(currentId)) {
+                throw new BusinessException("A candidate with this national ID already exists");
+            }
+        });
     }
 
     @Override

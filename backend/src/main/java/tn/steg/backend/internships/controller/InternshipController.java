@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import tn.steg.backend.internships.dto.CreateInternshipRequest;
+import tn.steg.backend.internships.dto.DashboardStats;
 import tn.steg.backend.internships.dto.InternshipResponse;
 import tn.steg.backend.internships.entity.InternshipStatus;
 import tn.steg.backend.internships.service.InternshipService;
@@ -24,6 +25,13 @@ import java.util.UUID;
 public class InternshipController {
 
     private final InternshipService internshipService;
+
+    @GetMapping("/stats")
+    @PreAuthorize("hasAnyRole('ADMINISTRATOR', 'HR_MANAGER', 'SUPERVISOR', 'DIRECTOR')")
+    @Operation(summary = "Get internship dashboard statistics")
+    public ResponseEntity<DashboardStats> getDashboardStats() {
+        return ResponseEntity.ok(internshipService.getDashboardStats());
+    }
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMINISTRATOR', 'HR_MANAGER', 'SUPERVISOR', 'DIRECTOR')")

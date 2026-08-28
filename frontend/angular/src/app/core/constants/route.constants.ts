@@ -6,6 +6,12 @@ export const APP_ROUTES = {
   roles: 'roles',
   departments: 'departments',
   audit: 'audit',
+  candidates: 'candidates',
+  applications: 'applications',
+  internships: 'internships',
+  internshipDashboard: 'internships/dashboard',
+  assignments: 'assignments',
+  supervisors: 'supervisors',
   forbidden: 'forbidden',
   notFound: 'not-found',
   root: ''
