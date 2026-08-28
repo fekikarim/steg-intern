@@ -11,6 +11,7 @@ import tn.steg.backend.users.repository.PermissionRepository;
 import tn.steg.backend.users.repository.RoleRepository;
 import tn.steg.backend.roles.dto.CreateRoleRequest;
 import tn.steg.backend.roles.dto.RoleResponse;
+import tn.steg.backend.roles.dto.UpdateRoleRequest;
 import tn.steg.backend.roles.service.RoleService;
 
 import java.util.HashSet;
@@ -54,6 +55,29 @@ public class RoleServiceImpl implements RoleService {
                 .build();
 
         if (request.getPermissionIds() != null && !request.getPermissionIds().isEmpty()) {
+            role.setPermissions(new HashSet<>(permissionRepository.findAllById(request.getPermissionIds())));
+        }
+
+        return toResponse(roleRepository.save(role));
+    }
+
+    @Override
+    @Transactional
+    public RoleResponse updateRole(UUID id, UpdateRoleRequest request) {
+        Role role = roleRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Role not found with id: " + id));
+
+        if (request.getName() != null && !request.getName().equals(role.getName())
+                && roleRepository.existsByName(request.getName())) {
+            throw new BusinessException("Role name already exists");
+        }
+
+        if (request.getName() != null) {
+            role.setName(request.getName());
+        }
+        role.setDescription(request.getDescription());
+
+        if (request.getPermissionIds() != null) {
             role.setPermissions(new HashSet<>(permissionRepository.findAllById(request.getPermissionIds())));
         }
 

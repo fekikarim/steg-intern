@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -25,6 +26,8 @@ import tn.steg.backend.users.repository.RefreshTokenRepository;
 import tn.steg.backend.users.repository.UserRepository;
 import tn.steg.backend.users.service.UserService;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -51,8 +54,29 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<UserResponse> getAllUsers(Pageable pageable) {
-        return userRepository.findAll(pageable).map(this::toResponse);
+    public Page<UserResponse> getAllUsers(String search, String roleName, String status, Pageable pageable) {
+        Specification<User> spec = buildSearchSpec(search, roleName, status);
+        return userRepository.findAll(spec, pageable).map(this::toResponse);
+    }
+
+    private Specification<User> buildSearchSpec(String search, String roleName, String status) {
+        return (root, query, cb) -> {
+            List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+            if (search != null && !search.isBlank()) {
+                String like = "%" + search.trim().toLowerCase() + "%";
+                predicates.add(cb.or(
+                        cb.like(cb.lower(root.get("email")), like),
+                        cb.like(cb.lower(root.get("role").get("name")), like)
+                ));
+            }
+            if (roleName != null && !roleName.isBlank()) {
+                predicates.add(cb.equal(root.get("role").get("name"), roleName));
+            }
+            if (status != null && !status.isBlank()) {
+                predicates.add(cb.equal(root.get("status"), UserStatus.valueOf(status.toUpperCase())));
+            }
+            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        };
     }
 
     @Override
@@ -139,6 +163,30 @@ public class UserServiceImpl implements UserService {
         user.setLockedUntil(null);
         userRepository.save(user);
         refreshTokenRepository.revokeAllActiveForUser(id);
+    }
+
+    @Override
+    @Transactional
+    @Audited(action = "ENABLE", entity = "USER", entityId = "#args[0]")
+    public void enableUser(UUID id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
+        user.setEnabled(true);
+        if (user.getStatus() == UserStatus.INACTIVE) {
+            user.setStatus(UserStatus.ACTIVE);
+        }
+        userRepository.save(user);
+    }
+
+    @Override
+    @Transactional
+    @Audited(action = "DISABLE", entity = "USER", entityId = "#args[0]")
+    public void disableUser(UUID id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
+        user.setEnabled(false);
+        user.setStatus(UserStatus.INACTIVE);
+        userRepository.save(user);
     }
 
     private UserProfileResponse toProfileResponse(User user) {

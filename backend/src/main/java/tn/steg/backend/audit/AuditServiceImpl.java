@@ -1,14 +1,24 @@
 package tn.steg.backend.audit;
 
+import jakarta.persistence.criteria.JoinType;
+import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import tn.steg.backend.audit.dto.AuditResponse;
 import tn.steg.backend.users.entity.AuditLog;
 import tn.steg.backend.users.entity.User;
 import tn.steg.backend.users.repository.AuditLogRepository;
 import tn.steg.backend.users.repository.UserRepository;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -48,6 +58,55 @@ public class AuditServiceImpl implements AuditService {
     @Override
     public void record(String action, String entityName, String newValue, String actorEmail) {
         record(action, entityName, null, null, newValue, actorEmail, null);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<AuditResponse> search(UUID userId, String actor, String action, String entityName, LocalDateTime from, LocalDateTime to, Pageable pageable) {
+        return auditLogRepository.findAll(buildSpecification(userId, actor, action, entityName, from, to), pageable)
+                .map(this::toResponse);
+    }
+
+    private Specification<AuditLog> buildSpecification(UUID userId, String actor, String action, String entityName, LocalDateTime from, LocalDateTime to) {
+        return (root, query, cb) -> {
+            if (query.getResultType() != Long.class) {
+                root.fetch("user", JoinType.LEFT);
+            }
+            List<Predicate> predicates = new ArrayList<>();
+            if (userId != null) {
+                predicates.add(cb.equal(root.get("user").get("id"), userId));
+            }
+            if (actor != null && !actor.isBlank()) {
+                predicates.add(cb.like(cb.lower(root.get("user").get("email")), "%" + actor.trim().toLowerCase() + "%"));
+            }
+            if (action != null && !action.isBlank()) {
+                predicates.add(cb.equal(root.get("action"), action));
+            }
+            if (entityName != null && !entityName.isBlank()) {
+                predicates.add(cb.equal(root.get("entityName"), entityName));
+            }
+            if (from != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), from));
+            }
+            if (to != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("createdAt"), to));
+            }
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+    }
+
+    private AuditResponse toResponse(AuditLog log) {
+        return AuditResponse.builder()
+                .id(log.getId())
+                .action(log.getAction())
+                .entityName(log.getEntityName())
+                .entityId(log.getEntityId())
+                .oldValue(log.getOldValue())
+                .newValue(log.getNewValue())
+                .ipAddress(log.getIpAddress())
+                .createdAt(log.getCreatedAt())
+                .actorEmail(log.getUser() != null ? log.getUser().getEmail() : null)
+                .build();
     }
 
     /**

@@ -9,8 +9,7 @@ import tn.steg.backend.internships.entity.InternshipStatus;
 import java.util.UUID;
 
 public interface InternshipService {
-    Page<InternshipResponse> getAllInternships(Pageable pageable);
-    Page<InternshipResponse> getInternshipsByStatus(InternshipStatus status, Pageable pageable);
+    Page<InternshipResponse> getAllInternships(InternshipStatus status, String search, Pageable pageable);
     InternshipResponse getInternshipById(UUID id);
     InternshipResponse createInternship(CreateInternshipRequest request);
     InternshipResponse updateStatus(UUID id, InternshipStatus status);

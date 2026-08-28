@@ -1,7 +1,9 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth.guard';
 import { guestGuard } from './core/guards/guest.guard';
+import { permissionGuard } from './core/guards/permission.guard';
 import { APP_ROUTES } from './core/constants/route.constants';
+import { PERMISSIONS } from './core/constants/permission.constants';
 
 export const routes: Routes = [
   {
@@ -58,6 +60,34 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/errors/forbidden/forbidden.component').then((m) => m.ForbiddenComponent),
         data: { title: 'Forbidden' }
+      },
+      {
+        path: APP_ROUTES.users,
+        canActivate: [permissionGuard],
+        loadComponent: () =>
+          import('./features/users/user-list.component').then((m) => m.UserListComponent),
+        data: { title: 'Users', permission: PERMISSIONS.USER_READ }
+      },
+      {
+        path: APP_ROUTES.roles,
+        canActivate: [permissionGuard],
+        loadComponent: () =>
+          import('./features/roles/role-list.component').then((m) => m.RoleListComponent),
+        data: { title: 'Roles', permission: PERMISSIONS.ROLE_READ }
+      },
+      {
+        path: APP_ROUTES.departments,
+        canActivate: [permissionGuard],
+        loadComponent: () =>
+          import('./features/departments/department-list.component').then((m) => m.DepartmentListComponent),
+        data: { title: 'Departments', roles: ['ADMINISTRATOR'] }
+      },
+      {
+        path: APP_ROUTES.audit,
+        canActivate: [permissionGuard],
+        loadComponent: () =>
+          import('./features/audit/audit-viewer.component').then((m) => m.AuditViewerComponent),
+        data: { title: 'Audit log', roles: ['ADMINISTRATOR'] }
       }
     ]
   },

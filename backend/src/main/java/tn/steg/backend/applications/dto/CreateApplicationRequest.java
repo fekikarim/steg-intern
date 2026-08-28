@@ -9,4 +9,6 @@ import java.util.UUID;
 public class CreateApplicationRequest {
     @NotNull(message = "Candidate ID is required")
     private UUID candidateId;
+
+    private Boolean submittedOnline;
 }

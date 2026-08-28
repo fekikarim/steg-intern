@@ -10,6 +10,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import tn.steg.backend.roles.dto.CreateRoleRequest;
 import tn.steg.backend.roles.dto.RoleResponse;
+import tn.steg.backend.roles.dto.UpdateRoleRequest;
 import tn.steg.backend.roles.service.RoleService;
 
 import java.util.List;
@@ -42,5 +43,12 @@ public class RoleController {
     @Operation(summary = "Create role")
     public ResponseEntity<RoleResponse> createRole(@Valid @RequestBody CreateRoleRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(roleService.createRole(request));
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMINISTRATOR')")
+    @Operation(summary = "Update role", description = "Update a role's name, description and assigned permissions")
+    public ResponseEntity<RoleResponse> updateRole(@PathVariable UUID id, @Valid @RequestBody UpdateRoleRequest request) {
+        return ResponseEntity.ok(roleService.updateRole(id, request));
     }
 }

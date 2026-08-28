@@ -12,6 +12,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import tn.steg.backend.candidates.dto.CandidateResponse;
 import tn.steg.backend.candidates.dto.CreateCandidateRequest;
+import tn.steg.backend.candidates.dto.UpdateCandidateRequest;
 import tn.steg.backend.candidates.service.CandidateService;
 
 import java.util.UUID;
@@ -26,9 +27,11 @@ public class CandidateController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMINISTRATOR', 'HR_MANAGER')")
-    @Operation(summary = "Get all candidates")
-    public ResponseEntity<Page<CandidateResponse>> getAllCandidates(Pageable pageable) {
-        return ResponseEntity.ok(candidateService.getAllCandidates(pageable));
+    @Operation(summary = "Get all candidates", description = "Optionally filter by free-text search (name, email or national ID)")
+    public ResponseEntity<Page<CandidateResponse>> getAllCandidates(
+            @RequestParam(required = false) String search,
+            Pageable pageable) {
+        return ResponseEntity.ok(candidateService.getAllCandidates(search, pageable));
     }
 
     @GetMapping("/{id}")
@@ -43,5 +46,13 @@ public class CandidateController {
     @Operation(summary = "Create candidate")
     public ResponseEntity<CandidateResponse> createCandidate(@Valid @RequestBody CreateCandidateRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(candidateService.createCandidate(request));
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMINISTRATOR', 'HR_MANAGER')")
+    @Operation(summary = "Update candidate")
+    public ResponseEntity<CandidateResponse> updateCandidate(@PathVariable UUID id,
+                                                             @Valid @RequestBody UpdateCandidateRequest request) {
+        return ResponseEntity.ok(candidateService.updateCandidate(id, request));
     }
 }

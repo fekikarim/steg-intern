@@ -6,6 +6,7 @@ import { ToastHostComponent } from '../../shared/components/toast-host/toast-hos
 import { ConfirmHostComponent } from '../../shared/components/confirm-host/confirm-host.component';
 import { AvatarComponent } from '../../shared/components/avatar/avatar.component';
 import { APP_ROUTES } from '../../core/constants/route.constants';
+import { PERMISSIONS } from '../../core/constants/permission.constants';
 
 interface NavItem {
   label: string;
@@ -457,7 +458,21 @@ export class MainLayoutComponent {
   });
 
   private readonly nav: NavItem[] = [
-    { label: 'Dashboard', route: [APP_ROUTES.dashboard], icon: '▦' }
+    { label: 'Dashboard', route: [APP_ROUTES.dashboard], icon: '▦' },
+    { label: 'Users', route: [APP_ROUTES.users], icon: '👥', requires: { permission: PERMISSIONS.USER_READ } },
+    { label: 'Roles', route: [APP_ROUTES.roles], icon: '🛡️', requires: { permission: PERMISSIONS.ROLE_READ } },
+    {
+      label: 'Departments',
+      route: [APP_ROUTES.departments],
+      icon: '🏢',
+      requires: { roles: ['ADMINISTRATOR'] }
+    },
+    {
+      label: 'Audit log',
+      route: [APP_ROUTES.audit],
+      icon: '📜',
+      requires: { roles: ['ADMINISTRATOR'] }
+    }
   ];
 
   protected readonly visibleNav = computed(() =>

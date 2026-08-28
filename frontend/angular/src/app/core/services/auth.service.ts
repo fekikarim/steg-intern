@@ -56,7 +56,24 @@ export class AuthService {
   }
 
   refreshSession(): Observable<boolean> {
-    return this.performRefresh().pipe(map((auth) => auth !== null));
+    return this.performRefresh().pipe(
+      switchMap((auth) => {
+        if (!auth) {
+          this.state.clearSession();
+          return of(false);
+        }
+        return this.userService.getProfile().pipe(
+          map((user) => {
+            this.state.setSession(auth.accessToken, user);
+            return true;
+          }),
+          catchError(() => {
+            this.state.clearSession();
+            return of(false);
+          })
+        );
+      })
+    );
   }
 
   /**

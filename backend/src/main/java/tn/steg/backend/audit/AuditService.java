@@ -1,5 +1,10 @@
 package tn.steg.backend.audit;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import tn.steg.backend.audit.dto.AuditResponse;
+
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
@@ -26,4 +31,17 @@ public interface AuditService {
      * Records an audit event without associating an entity.
      */
     void record(String action, String entityName, String newValue, String actorEmail);
+
+    /**
+     * Searches audit log entries with optional filters and pagination.
+     *
+     * @param userId     optional actor user id filter
+     * @param actor      optional actor email (substring) filter
+     * @param action     optional action filter
+     * @param entityName optional entity name filter
+     * @param from       optional created-at lower bound (inclusive)
+     * @param to         optional created-at upper bound (inclusive)
+     * @param pageable   pagination and sorting
+     */
+    Page<AuditResponse> search(UUID userId, String actor, String action, String entityName, LocalDateTime from, LocalDateTime to, Pageable pageable);
 }

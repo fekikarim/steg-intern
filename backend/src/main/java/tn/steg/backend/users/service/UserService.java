@@ -11,11 +11,13 @@ import java.util.UUID;
 
 public interface UserService {
     UserProfileResponse getCurrentUserProfile();
-    Page<UserResponse> getAllUsers(Pageable pageable);
+    Page<UserResponse> getAllUsers(String search, String roleName, String status, Pageable pageable);
     UserResponse getUserById(UUID id);
     UserResponse createUser(CreateUserRequest request);
     UserResponse updateUser(UUID id, UpdateUserRequest request);
     void deleteUser(UUID id);
     void unlockUser(UUID id);
     void lockUser(UUID id);
+    void enableUser(UUID id);
+    void disableUser(UUID id);
 }

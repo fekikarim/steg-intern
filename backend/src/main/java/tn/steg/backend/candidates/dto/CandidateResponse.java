@@ -24,4 +24,5 @@ public class CandidateResponse {
     private String diploma;
     private String skills;
     private String languages;
+    private UUID userId;
 }

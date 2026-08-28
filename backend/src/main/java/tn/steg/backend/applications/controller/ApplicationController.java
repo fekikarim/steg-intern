@@ -27,9 +27,12 @@ public class ApplicationController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMINISTRATOR', 'HR_MANAGER')")
-    @Operation(summary = "Get all applications")
-    public ResponseEntity<Page<ApplicationResponse>> getAllApplications(Pageable pageable) {
-        return ResponseEntity.ok(applicationService.getAllApplications(pageable));
+    @Operation(summary = "Get all applications", description = "Optionally filter by status and free-text search (reference or candidate)")
+    public ResponseEntity<Page<ApplicationResponse>> getAllApplications(
+            @RequestParam(required = false) ApplicationStatus status,
+            @RequestParam(required = false) String search,
+            Pageable pageable) {
+        return ResponseEntity.ok(applicationService.getAllApplications(status, search, pageable));
     }
 
     @GetMapping("/{id}")
@@ -51,6 +54,20 @@ public class ApplicationController {
     @Operation(summary = "Submit application")
     public ResponseEntity<ApplicationResponse> submitApplication(@PathVariable UUID id) {
         return ResponseEntity.ok(applicationService.submitApplication(id));
+    }
+
+    @PatchMapping("/{id}/accept")
+    @PreAuthorize("hasAnyRole('ADMINISTRATOR', 'HR_MANAGER')")
+    @Operation(summary = "Accept application")
+    public ResponseEntity<ApplicationResponse> acceptApplication(@PathVariable UUID id) {
+        return ResponseEntity.ok(applicationService.acceptApplication(id));
+    }
+
+    @PatchMapping("/{id}/reject")
+    @PreAuthorize("hasAnyRole('ADMINISTRATOR', 'HR_MANAGER')")
+    @Operation(summary = "Reject application")
+    public ResponseEntity<ApplicationResponse> rejectApplication(@PathVariable UUID id) {
+        return ResponseEntity.ok(applicationService.rejectApplication(id));
     }
 
     @PatchMapping("/{id}/status")

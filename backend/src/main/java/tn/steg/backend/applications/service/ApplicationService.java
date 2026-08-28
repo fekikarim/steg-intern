@@ -9,10 +9,11 @@ import tn.steg.backend.applications.entity.ApplicationStatus;
 import java.util.UUID;
 
 public interface ApplicationService {
-    Page<ApplicationResponse> getAllApplications(Pageable pageable);
-    Page<ApplicationResponse> getApplicationsByStatus(ApplicationStatus status, Pageable pageable);
+    Page<ApplicationResponse> getAllApplications(ApplicationStatus status, String search, Pageable pageable);
     ApplicationResponse getApplicationById(UUID id);
     ApplicationResponse createApplication(CreateApplicationRequest request);
     ApplicationResponse submitApplication(UUID id);
+    ApplicationResponse acceptApplication(UUID id);
+    ApplicationResponse rejectApplication(UUID id);
     ApplicationResponse updateStatus(UUID id, ApplicationStatus status);
 }

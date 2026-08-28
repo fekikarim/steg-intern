@@ -27,9 +27,12 @@ public class InternshipController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMINISTRATOR', 'HR_MANAGER', 'SUPERVISOR', 'DIRECTOR')")
-    @Operation(summary = "Get all internships")
-    public ResponseEntity<Page<InternshipResponse>> getAllInternships(Pageable pageable) {
-        return ResponseEntity.ok(internshipService.getAllInternships(pageable));
+    @Operation(summary = "Get all internships", description = "Optionally filter by status and free-text search (reference or candidate)")
+    public ResponseEntity<Page<InternshipResponse>> getAllInternships(
+            @RequestParam(required = false) InternshipStatus status,
+            @RequestParam(required = false) String search,
+            Pageable pageable) {
+        return ResponseEntity.ok(internshipService.getAllInternships(status, search, pageable));
     }
 
     @GetMapping("/{id}")

@@ -72,7 +72,7 @@ import { Page } from '../../../core/models/api.model';
   ]
 })
 export class PaginationComponent<T> {
-  readonly page = input<Page<T>>();
+  readonly page = input<Page<T> | null>();
   readonly pageChange = output<number>();
 
   protected readonly pageNumbers = computed<number[]>(() => {

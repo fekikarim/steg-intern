@@ -34,9 +34,13 @@ public class UserController {
 
     @GetMapping
     @PreAuthorize("hasRole('ADMINISTRATOR')")
-    @Operation(summary = "Get all users", description = "Retrieve all users with pagination")
-    public ResponseEntity<Page<UserResponse>> getAllUsers(Pageable pageable) {
-        return ResponseEntity.ok(userService.getAllUsers(pageable));
+    @Operation(summary = "Get all users", description = "Retrieve all users with pagination, search and filters")
+    public ResponseEntity<Page<UserResponse>> getAllUsers(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String roleName,
+            @RequestParam(required = false) String status,
+            Pageable pageable) {
+        return ResponseEntity.ok(userService.getAllUsers(search, roleName, status, pageable));
     }
 
     @GetMapping("/{id}")
@@ -81,6 +85,22 @@ public class UserController {
     @Operation(summary = "Lock user", description = "Manually lock a user account and revoke active sessions")
     public ResponseEntity<Void> lockUser(@PathVariable UUID id) {
         userService.lockUser(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/enable")
+    @PreAuthorize("hasRole('ADMINISTRATOR')")
+    @Operation(summary = "Enable user", description = "Enable a user account and reactivate it if inactive")
+    public ResponseEntity<Void> enableUser(@PathVariable UUID id) {
+        userService.enableUser(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/disable")
+    @PreAuthorize("hasRole('ADMINISTRATOR')")
+    @Operation(summary = "Disable user", description = "Disable a user account and mark it inactive")
+    public ResponseEntity<Void> disableUser(@PathVariable UUID id) {
+        userService.disableUser(id);
         return ResponseEntity.noContent().build();
     }
 }
