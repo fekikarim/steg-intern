@@ -20,6 +20,8 @@ import tn.steg.backend.candidates.entity.Candidate;
 import tn.steg.backend.candidates.repository.CandidateRepository;
 import tn.steg.backend.exception.BusinessException;
 import tn.steg.backend.exception.ResourceNotFoundException;
+import tn.steg.backend.security.CurrentUserService;
+import tn.steg.backend.users.entity.User;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -34,6 +36,7 @@ public class ApplicationServiceImpl implements ApplicationService {
 
     private final InternshipApplicationRepository applicationRepository;
     private final CandidateRepository candidateRepository;
+    private final CurrentUserService currentUserService;
 
     /**
      * Explicit application state machine. Each key lists the only legal target
@@ -56,16 +59,30 @@ public class ApplicationServiceImpl implements ApplicationService {
     @Override
     @Transactional(readOnly = true)
     public ApplicationResponse getApplicationById(UUID id) {
+        assertCandidateOwnership(id);
         InternshipApplication app = applicationRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Application not found"));
         return toResponse(app);
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<ApplicationResponse> getMyApplications() {
+        Candidate self = currentCandidateIfSelf();
+        if (self == null) {
+            throw new BusinessException("Only candidates can list their own applications");
+        }
+        return applicationRepository.findByCandidateId(self.getId())
+                .stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    @Override
     @Transactional
     @Audited(action = "CREATE", entity = "APPLICATION", entityId = "#result.id", newValue = "#result")
     public ApplicationResponse createApplication(CreateApplicationRequest request) {
-        Candidate candidate = resolveCandidate(request);
+        Candidate candidate = resolveCandidateForCurrentUser(request);
 
         boolean submittedOnline = request.getSubmittedOnline() != null && request.getSubmittedOnline();
 
@@ -80,11 +97,15 @@ public class ApplicationServiceImpl implements ApplicationService {
     }
 
     /**
-     * Resolves the candidate for an application. Supports two modes:
-     * (1) an existing candidate referenced by candidateId, or
-     * (2) inline candidate data that is created on the fly (physical / manual submissions).
+     * Resolves the candidate for an application. When the caller is an authenticated
+     * candidate, ownership is enforced: the application is always bound to their own
+     * profile, regardless of any candidateId/inline payload supplied.
      */
-    private Candidate resolveCandidate(CreateApplicationRequest request) {
+    private Candidate resolveCandidateForCurrentUser(CreateApplicationRequest request) {
+        Candidate self = currentCandidateIfSelf();
+        if (self != null) {
+            return self;
+        }
         if (request.getCandidateId() != null) {
             return candidateRepository.findById(request.getCandidateId())
                     .orElseThrow(() -> new ResourceNotFoundException("Candidate not found"));
@@ -112,6 +133,36 @@ public class ApplicationServiceImpl implements ApplicationService {
         return candidateRepository.save(candidate);
     }
 
+    /**
+     * Returns the current applicant's candidate profile when the authenticated user
+     * holds the CANDIDATE role, otherwise {@code null} (HR/admin back-office flow).
+     */
+    private Candidate currentCandidateIfSelf() {
+        if (!currentUserService.isAuthenticated()) {
+            return null;
+        }
+        User user = currentUserService.currentUser();
+        if (user.getRole() == null || !"CANDIDATE".equals(user.getRole().getName())) {
+            return null;
+        }
+        return candidateRepository.findByUser_Id(user.getId()).orElse(null);
+    }
+
+    /**
+     * Ensures a candidate may only act on their own applications.
+     */
+    private void assertCandidateOwnership(UUID id) {
+        Candidate self = currentCandidateIfSelf();
+        if (self == null) {
+            return;
+        }
+        InternshipApplication app = applicationRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Application not found"));
+        if (!self.getId().equals(app.getCandidate().getId())) {
+            throw new BusinessException("You can only access your own applications");
+        }
+    }
+
     private void assertEmailUnique(String email, UUID currentId) {
         if (email == null || email.isBlank()) return;
         candidateRepository.findByContactEmail(email.trim()).ifPresent(existing -> {
@@ -134,6 +185,7 @@ public class ApplicationServiceImpl implements ApplicationService {
     @Transactional
     @Audited(action = "SUBMIT", entity = "APPLICATION", entityId = "#args[0]", newValue = "#result")
     public ApplicationResponse submitApplication(UUID id) {
+        assertCandidateOwnership(id);
         InternshipApplication app = findById(id);
         checkTransition(app, ApplicationStatus.SUBMITTED); // DRAFT -> SUBMITTED
         app.setStatus(ApplicationStatus.SUBMITTED);

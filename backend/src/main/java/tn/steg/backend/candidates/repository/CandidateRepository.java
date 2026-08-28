@@ -9,4 +9,5 @@ import java.util.UUID;
 public interface CandidateRepository extends JpaRepository<Candidate, UUID>, JpaSpecificationExecutor<Candidate> {
     Optional<Candidate> findByContactEmail(String email);
     Optional<Candidate> findByNationalId(String nationalId);
+    Optional<Candidate> findByUser_Id(UUID userId);
 }

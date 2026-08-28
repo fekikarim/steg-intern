@@ -25,6 +25,13 @@ public class CandidateController {
 
     private final CandidateService candidateService;
 
+    @GetMapping("/me")
+    @PreAuthorize("hasAnyRole('CANDIDATE')")
+    @Operation(summary = "Get current candidate profile", description = "Return the authenticated candidate's own profile")
+    public ResponseEntity<CandidateResponse> getMyProfile() {
+        return ResponseEntity.ok(candidateService.getCurrentCandidate());
+    }
+
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMINISTRATOR', 'HR_MANAGER')")
     @Operation(summary = "Get all candidates", description = "Optionally filter by free-text search (name, email or national ID)")

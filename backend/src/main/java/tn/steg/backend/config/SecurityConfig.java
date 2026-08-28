@@ -21,6 +21,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 import tn.steg.backend.security.JwtAuthenticationFilter;
+import tn.steg.backend.security.RateLimitFilter;
 
 @Configuration
 @EnableWebSecurity
@@ -29,6 +30,7 @@ import tn.steg.backend.security.JwtAuthenticationFilter;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final RateLimitFilter rateLimitFilter;
 
     @Value("${app.cors.allowed-origins:http://localhost:4200}")
     private String allowedOrigins;
@@ -36,23 +38,27 @@ public class SecurityConfig {
     @Value("${app.security.require-https:false}")
     private boolean requireHttps;
 
+    @Value("${app.security.show-docs:true}")
+    private boolean showApiDocs;
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth
-                        // Public authentication entry points.
-                        .requestMatchers("/auth/login", "/auth/refresh", "/auth/register",
-                                "/auth/forgot-password", "/auth/reset-password").permitAll()
-                        // Documentation / health.
-                        .requestMatchers("/swagger-ui/**", "/api-docs/**", "/swagger-ui.html").permitAll()
-                        .requestMatchers("/actuator/health").permitAll()
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        // Everything else requires authentication.
-                        .anyRequest().authenticated()
-                )
+                .authorizeHttpRequests(auth -> {
+                    auth.requestMatchers("/auth/login", "/auth/refresh", "/auth/register",
+                                    "/auth/forgot-password", "/auth/reset-password").permitAll()
+                            // Everything else requires authentication.
+                            .requestMatchers("/actuator/health").permitAll()
+                            .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
+                    if (showApiDocs) {
+                        auth.requestMatchers("/swagger-ui/**", "/api-docs/**", "/swagger-ui.html").permitAll();
+                    }
+                    auth.anyRequest().authenticated();
+                })
+                .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint((request, response, authException) ->
@@ -62,6 +68,8 @@ public class SecurityConfig {
                 )
                 .headers(headers -> {
                     headers
+                            .contentTypeOptions(contentTypeOptions -> {})
+                            .cacheControl(cacheControl -> {})
                             .contentSecurityPolicy(csp -> csp.policyDirectives(
                                     "default-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"))
                             .referrerPolicy(referrer ->

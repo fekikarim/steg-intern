@@ -1,0 +1,89 @@
+# Production profile.
+#
+# Secure-by-default overrides. Every sensitive value is injected from the
+# environment rather than baked into source control. The dev profile remains
+# the only place with relaxed, local-only defaults.
+
+spring:
+  # Schema is expected to be managed by a migration tool (Flyway/Liquibase).
+  # Set to 'validate' once migrations are in place.
+  jpa:
+    hibernate:
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:update}
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+        jdbc:
+          batch_size: 25
+        order_inserts: true
+        order_updates: true
+        default_batch_fetch_size: 16
+
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/steg_db}
+    username: ${DB_USERNAME:}
+    password: ${DB_PASSWORD:}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX:10}
+      minimum-idle: 2
+      idle-timeout: 300000
+      connection-timeout: 20000
+
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+  mail:
+    host: ${MAIL_HOST:}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+
+server:
+  error:
+    # Never leak stack traces to clients in production.
+    include-stacktrace: never
+    include-message: never
+
+jwt:
+  # Production REQUIRES a strong, externally supplied secret. Startup fails if
+  # it is missing so the app cannot be silently deployed with a default key.
+  secret: ${JWT_SECRET:}
+  access-token:
+    expiration: ${JWT_ACCESS_EXPIRATION:900000}
+  refresh-token:
+    expiration: ${JWT_REFRESH_EXPIRATION:604800000}
+
+app:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:}
+  security:
+    max-failed-login-attempts: 5
+    lockout-duration: 15m
+    password-reset-token-ttl: 15m
+    require-https: ${REQUIRE_HTTPS:true}
+    # API documentation must not be exposed in production.
+    show-docs: ${SHOW_DOCS:false}
+  rate-limit:
+    enabled: ${RATE_LIMIT_ENABLED:true}
+    default-per-minute: 100
+    auth-per-minute: 10
+    sensitive-per-minute: 5
+
+springdoc:
+  api-docs:
+    enabled: ${SHOW_DOCS:false}
+  swagger-ui:
+    enabled: ${SHOW_DOCS:false}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized

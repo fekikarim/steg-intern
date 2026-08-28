@@ -498,6 +498,30 @@ export class MainLayoutComponent {
       requires: { permission: PERMISSIONS.INTERNSHIP_READ }
     },
     {
+      label: 'Workflows',
+      route: [APP_ROUTES.workflows],
+      icon: '🔄',
+      requires: { permission: PERMISSIONS.WORKFLOW_READ }
+    },
+    {
+      label: 'Documents',
+      route: [APP_ROUTES.documents],
+      icon: '📄',
+      requires: { permission: PERMISSIONS.DOCUMENT_UPLOAD }
+    },
+    {
+      label: 'Payments',
+      route: [APP_ROUTES.payments],
+      icon: '💶',
+      requires: { permission: PERMISSIONS.PAYMENT_READ }
+    },
+    {
+      label: 'Reports',
+      route: [APP_ROUTES.reports],
+      icon: '📈',
+      requires: { permission: PERMISSIONS.REPORT_READ }
+    },
+    {
       label: 'Departments',
       route: [APP_ROUTES.departments],
       icon: '🏢',

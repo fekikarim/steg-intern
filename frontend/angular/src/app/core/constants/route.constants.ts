@@ -12,6 +12,10 @@ export const APP_ROUTES = {
   internshipDashboard: 'internships/dashboard',
   assignments: 'assignments',
   supervisors: 'supervisors',
+  workflows: 'workflows',
+  documents: 'documents',
+  payments: 'payments',
+  reports: 'reports',
   forbidden: 'forbidden',
   notFound: 'not-found',
   root: ''

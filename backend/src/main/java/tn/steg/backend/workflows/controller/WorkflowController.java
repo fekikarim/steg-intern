@@ -13,6 +13,7 @@ import tn.steg.backend.users.repository.UserRepository;
 import tn.steg.backend.workflows.dto.*;
 import tn.steg.backend.workflows.service.WorkflowService;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -23,6 +24,13 @@ public class WorkflowController {
 
     private final WorkflowService workflowService;
     private final UserRepository userRepository;
+
+    @GetMapping
+    @PreAuthorize("hasAnyRole('ADMINISTRATOR', 'HR_MANAGER', 'SUPERVISOR')")
+    @Operation(summary = "List all workflows")
+    public ResponseEntity<List<WorkflowResponse>> getAllWorkflows() {
+        return ResponseEntity.ok(workflowService.getAllWorkflows());
+    }
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMINISTRATOR', 'HR_MANAGER', 'SUPERVISOR')")

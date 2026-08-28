@@ -1,0 +1,93 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (Spring Boot)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Cache Maven dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: maven-${{ hashFiles('backend/pom.xml') }}
+          restore-keys: |
+            maven-
+
+      - name: Compile
+        run: ./mvnw -B -ntp compile
+
+      - name: Run tests
+        run: ./mvnw -B -ntp test
+
+      - name: Package (skip tests)
+        run: ./mvnw -B -ntp -DskipTests package
+
+      - name: Upload backend build
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend
+          path: backend/target/*.jar
+          if-no-files-found: warn
+
+  frontend:
+    name: Frontend (Angular)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend/angular
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/angular/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install headless Chrome for Karma
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends google-chrome-stable
+          echo "CHROME_BIN=/usr/bin/google-chrome" >> "$GITHUB_ENV"
+
+      - name: Production build
+        run: npm run build
+
+      - name: Unit tests (headless)
+        run: npm test -- --watch=false --browsers=ChromeHeadless
+
+      - name: Upload frontend build
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend
+          path: frontend/angular/dist/**
+          if-no-files-found: warn

@@ -15,6 +15,7 @@ import tn.steg.backend.candidates.repository.CandidateRepository;
 import tn.steg.backend.candidates.service.CandidateService;
 import tn.steg.backend.exception.BusinessException;
 import tn.steg.backend.exception.ResourceNotFoundException;
+import tn.steg.backend.security.CurrentUserService;
 import tn.steg.backend.users.entity.User;
 import tn.steg.backend.users.repository.UserRepository;
 
@@ -26,6 +27,7 @@ public class CandidateServiceImpl implements CandidateService {
 
     private final CandidateRepository candidateRepository;
     private final UserRepository userRepository;
+    private final CurrentUserService currentUserService;
 
     @Override
     @Transactional(readOnly = true)
@@ -38,6 +40,15 @@ public class CandidateServiceImpl implements CandidateService {
     public CandidateResponse getCandidateById(UUID id) {
         Candidate candidate = candidateRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Candidate not found"));
+        return toResponse(candidate);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CandidateResponse getCurrentCandidate() {
+        User user = currentUserService.currentUser();
+        Candidate candidate = candidateRepository.findByUser_Id(user.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Candidate profile not found"));
         return toResponse(candidate);
     }
 

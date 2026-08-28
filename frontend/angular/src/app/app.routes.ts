@@ -130,6 +130,34 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/supervisors/supervisor-list.component').then((m) => m.SupervisorListComponent),
         data: { title: 'Supervisors', permission: PERMISSIONS.INTERNSHIP_READ }
+      },
+      {
+        path: APP_ROUTES.workflows,
+        canActivate: [permissionGuard],
+        loadComponent: () =>
+          import('./features/workflows/workflow-list.component').then((m) => m.WorkflowListComponent),
+        data: { title: 'Workflows', permission: PERMISSIONS.WORKFLOW_READ }
+      },
+      {
+        path: APP_ROUTES.documents,
+        canActivate: [permissionGuard],
+        loadComponent: () =>
+          import('./features/documents/document-list.component').then((m) => m.DocumentListComponent),
+        data: { title: 'Documents', permission: PERMISSIONS.DOCUMENT_UPLOAD }
+      },
+      {
+        path: APP_ROUTES.payments,
+        canActivate: [permissionGuard],
+        loadComponent: () =>
+          import('./features/payments/payment-list.component').then((m) => m.PaymentListComponent),
+        data: { title: 'Payments', permission: PERMISSIONS.PAYMENT_READ }
+      },
+      {
+        path: APP_ROUTES.reports,
+        canActivate: [permissionGuard],
+        loadComponent: () =>
+          import('./features/reporting/report-viewer.component').then((m) => m.ReportViewerComponent),
+        data: { title: 'Reports', permission: PERMISSIONS.REPORT_READ }
       }
     ]
   },

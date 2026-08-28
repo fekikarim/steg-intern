@@ -28,6 +28,15 @@ public class WorkflowServiceImpl implements WorkflowService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<WorkflowResponse> getAllWorkflows() {
+        return workflowRepository.findAll()
+                .stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public WorkflowResponse getWorkflowById(UUID id) {
         Workflow wf = workflowRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Workflow not found"));

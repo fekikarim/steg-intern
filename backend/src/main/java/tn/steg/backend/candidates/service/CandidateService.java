@@ -11,6 +11,7 @@ import java.util.UUID;
 public interface CandidateService {
     Page<CandidateResponse> getAllCandidates(String search, Pageable pageable);
     CandidateResponse getCandidateById(UUID id);
+    CandidateResponse getCurrentCandidate();
     CandidateResponse createCandidate(CreateCandidateRequest request);
     CandidateResponse updateCandidate(UUID id, UpdateCandidateRequest request);
 }

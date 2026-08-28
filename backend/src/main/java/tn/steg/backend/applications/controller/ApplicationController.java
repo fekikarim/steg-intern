@@ -15,6 +15,7 @@ import tn.steg.backend.applications.dto.CreateApplicationRequest;
 import tn.steg.backend.applications.entity.ApplicationStatus;
 import tn.steg.backend.applications.service.ApplicationService;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -24,6 +25,13 @@ import java.util.UUID;
 public class ApplicationController {
 
     private final ApplicationService applicationService;
+
+    @GetMapping("/mine")
+    @PreAuthorize("hasAnyRole('CANDIDATE')")
+    @Operation(summary = "Get my applications", description = "Return the authenticated candidate's own applications")
+    public ResponseEntity<List<ApplicationResponse>> getMyApplications() {
+        return ResponseEntity.ok(applicationService.getMyApplications());
+    }
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMINISTRATOR', 'HR_MANAGER')")
