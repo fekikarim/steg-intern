@@ -16,6 +16,8 @@ import tn.steg.backend.candidates.entity.Candidate;
 import tn.steg.backend.candidates.repository.CandidateRepository;
 import tn.steg.backend.exception.BusinessException;
 import tn.steg.backend.exception.ResourceNotFoundException;
+import tn.steg.backend.realtime.RealtimeEvent;
+import tn.steg.backend.realtime.RealtimeService;
 import tn.steg.backend.internships.dto.CreateInternshipRequest;
 import tn.steg.backend.internships.dto.DashboardStats;
 import tn.steg.backend.internships.dto.InternshipResponse;
@@ -40,6 +42,7 @@ public class InternshipServiceImpl implements InternshipService {
     private final CandidateRepository candidateRepository;
     private final InternshipApplicationRepository applicationRepository;
     private final InternOwnershipService internOwnershipService;
+    private final RealtimeService realtimeService;
 
     /**
      * Explicit internship state machine. Illegal transitions are rejected.
@@ -116,7 +119,9 @@ public class InternshipServiceImpl implements InternshipService {
             applicationRepository.save(application);
         }
 
-        return toResponse(internshipRepository.save(internship));
+        Internship saved = internshipRepository.save(internship);
+        realtimeService.broadcast(RealtimeEvent.of(RealtimeEvent.Entity.INTERNSHIP, RealtimeEvent.Action.CREATED, saved.getId().toString()));
+        return toResponse(saved);
     }
 
     @Override
@@ -127,7 +132,9 @@ public class InternshipServiceImpl implements InternshipService {
                 .orElseThrow(() -> new ResourceNotFoundException("Internship not found"));
         checkTransition(internship, status);
         internship.setStatus(status);
-        return toResponse(internshipRepository.save(internship));
+        Internship saved = internshipRepository.save(internship);
+        realtimeService.broadcast(RealtimeEvent.of(RealtimeEvent.Entity.INTERNSHIP, RealtimeEvent.Action.STATUS_CHANGED, saved.getId().toString()));
+        return toResponse(saved);
     }
 
     @Override

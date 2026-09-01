@@ -43,6 +43,12 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private final RateLimitProperties properties;
     private final ObjectMapper objectMapper;
 
+    /**
+     * Separate deques per client-key + budget-category so that GET traffic
+     * does not consume the budget for write operations.
+     * Key format: {@code <client-ip>:<category>} where category is
+     * {@code auth}, {@code sensitive}, or {@code default}.
+     */
     private final Map<String, ArrayDeque<Long>> requests = new ConcurrentHashMap<>();
 
     @Override
@@ -54,10 +60,11 @@ public class RateLimitFilter extends OncePerRequestFilter {
             return;
         }
 
-        String key = clientKey(request);
+        String clientIp = clientKey(request);
+        String category = categoryFor(request);
         int budget = budgetFor(request);
 
-        if (!tryAcquire(key, budget)) {
+        if (!tryAcquire(clientIp, category, budget)) {
             reject(request, response);
             return;
         }
@@ -75,6 +82,21 @@ public class RateLimitFilter extends OncePerRequestFilter {
             }
         }
         return request.getRemoteAddr();
+    }
+
+    /**
+     * Returns the budget category for the request: {@code auth}, {@code sensitive},
+     * or {@code default}. Each category maintains its own sliding window.
+     */
+    private String categoryFor(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        if (path.startsWith("/auth/")) {
+            return "auth";
+        }
+        if (isWrite(request) && !path.startsWith("/actuator/")) {
+            return "sensitive";
+        }
+        return "default";
     }
 
     private int budgetFor(HttpServletRequest request) {
@@ -96,8 +118,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
                 || HttpMethod.DELETE.matches(method);
     }
 
-    private boolean tryAcquire(String key, int budget) {
+    private boolean tryAcquire(String clientIp, String category, int budget) {
         long now = System.currentTimeMillis();
+        String key = clientIp + ":" + category;
         ArrayDeque<Long> window = requests.computeIfAbsent(key, k -> new ArrayDeque<>());
 
         synchronized (window) {

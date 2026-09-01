@@ -4,6 +4,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tn.steg.backend.exception.ResourceNotFoundException;
+import tn.steg.backend.realtime.RealtimeEvent;
+import tn.steg.backend.realtime.RealtimeService;
 import tn.steg.backend.users.entity.User;
 import tn.steg.backend.users.repository.UserRepository;
 import tn.steg.backend.workflows.dto.*;
@@ -25,6 +27,7 @@ public class WorkflowServiceImpl implements WorkflowService {
     private final WorkflowStepRepository workflowStepRepository;
     private final WorkflowActionRepository workflowActionRepository;
     private final UserRepository userRepository;
+    private final RealtimeService realtimeService;
 
     @Override
     @Transactional(readOnly = true)
@@ -65,7 +68,9 @@ public class WorkflowServiceImpl implements WorkflowService {
             wf.setSteps(steps);
         }
 
-        return toResponse(workflowRepository.save(wf));
+        Workflow saved = workflowRepository.save(wf);
+        realtimeService.broadcast(RealtimeEvent.of(RealtimeEvent.Entity.WORKFLOW, RealtimeEvent.Action.CREATED, saved.getId().toString()));
+        return toResponse(saved);
     }
 
     @Override
@@ -105,6 +110,7 @@ public class WorkflowServiceImpl implements WorkflowService {
             workflowRepository.save(workflow);
         }
 
+        realtimeService.broadcast(RealtimeEvent.of(RealtimeEvent.Entity.WORKFLOW, RealtimeEvent.Action.STATUS_CHANGED, step.getWorkflow().getId().toString()));
         return toActionResponse(action);
     }
 

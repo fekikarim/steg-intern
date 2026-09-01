@@ -1,7 +1,7 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { finalize } from 'rxjs';
+import { debounceTime, finalize } from 'rxjs';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { TableComponent, TableColumn } from '../../shared/components/table/table.component';
 import { ModalComponent } from '../../shared/components/modal/modal.component';
@@ -11,6 +11,8 @@ import { ButtonComponent } from '../../shared/components/button/button.component
 import { ErrorStateComponent } from '../../shared/components/error-state/error-state.component';
 import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
 import { WorkflowsService } from '../../core/services/workflows.service';
+import { RealtimeService } from '../../core/services/realtime.service';
+import { RealtimeEvent } from '../../core/models/realtime.model';
 import { ToastService } from '../../core/services/toast.service';
 import {
   WorkflowResponse,
@@ -121,9 +123,10 @@ const DECISION_OPTIONS: SelectOption<ApprovalDecision>[] = [
       }
     }
 
-    <steg-modal [open]="showCreate()" title="Create workflow" (dismissed)="closeCreate()">
+    <steg-modal [open]="showCreate()" title="Create workflow" [subtitle]="'Create a new workflow template'" (dismissed)="closeCreate()">
       <form [formGroup]="createForm" (ngSubmit)="save()" novalidate>
-        <div class="form-stack">
+        <div class="form-section">
+          <p class="form-section-title">Workflow configuration</p>
           <steg-field label="Name" [required]="true" [invalid]="createInvalid('name')" [error]="createError('name')">
             <input
               id="wf-name"
@@ -267,9 +270,6 @@ const DECISION_OPTIONS: SelectOption<ApprovalDecision>[] = [
         display: grid;
         gap: 1rem;
       }
-      .form-grid {
-        grid-template-columns: 1fr 1fr;
-      }
       .native-input {
         width: 100%;
         padding: 0.55rem 0.75rem;
@@ -378,11 +378,6 @@ const DECISION_OPTIONS: SelectOption<ApprovalDecision>[] = [
         min-width: 10rem;
         font-style: normal;
       }
-      @media (max-width: 640px) {
-        .form-grid {
-          grid-template-columns: 1fr;
-        }
-      }
       ::ng-deep .table-wrap .row-actions {
         display: flex;
       }
@@ -391,8 +386,10 @@ const DECISION_OPTIONS: SelectOption<ApprovalDecision>[] = [
 })
 export class WorkflowListComponent {
   private readonly fb = inject(FormBuilder);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly workflowsSvc = inject(WorkflowsService);
   private readonly toast = inject(ToastService);
+  private readonly realtime = inject(RealtimeService);
 
   protected readonly loading = signal(true);
   protected readonly failed = signal(false);
@@ -448,6 +445,12 @@ export class WorkflowListComponent {
 
   constructor() {
     this.load();
+
+    // Real-time sync
+    this.realtime.of('WORKFLOW').pipe(
+      takeUntilDestroyed(this.destroyRef),
+      debounceTime(300)
+    ).subscribe(() => this.load());
   }
 
   protected load(): void {
@@ -455,7 +458,7 @@ export class WorkflowListComponent {
     this.failed.set(false);
     this.workflowsSvc
       .getAll()
-      .pipe(takeUntilDestroyed(), finalize(() => this.loading.set(false)))
+      .pipe(takeUntilDestroyed(this.destroyRef), finalize(() => this.loading.set(false)))
       .subscribe({
         next: (data) => this.workflows.set(data),
         error: (error: { message?: string }) => {
@@ -476,7 +479,7 @@ export class WorkflowListComponent {
   }
 
   protected async openDetail(wf: WorkflowResponse): Promise<void> {
-    const target = await this.workflowsSvc.getById(wf.id).pipe(takeUntilDestroyed()).toPromise();
+    const target = await this.workflowsSvc.getById(wf.id).pipe(takeUntilDestroyed(this.destroyRef)).toPromise();
     if (!target) {
       return;
     }
@@ -518,7 +521,7 @@ export class WorkflowListComponent {
     this.stepSubmitting.set(step.id);
     this.workflowsSvc
       .executeAction(request)
-      .pipe(takeUntilDestroyed(), finalize(() => this.stepSubmitting.set(null)))
+      .pipe(takeUntilDestroyed(this.destroyRef), finalize(() => this.stepSubmitting.set(null)))
       .subscribe({
         next: () => {
           this.toast.success('Action recorded', `Step ${step.sequence} updated`);
@@ -532,7 +535,7 @@ export class WorkflowListComponent {
 
   private async refreshDetail(wf: WorkflowResponse): Promise<void> {
     try {
-      const fresh = await this.workflowsSvc.getById(wf.id).pipe(takeUntilDestroyed()).toPromise();
+      const fresh = await this.workflowsSvc.getById(wf.id).pipe(takeUntilDestroyed(this.destroyRef)).toPromise();
       if (!fresh) {
         this.closeDetail();
         this.load();
@@ -563,7 +566,7 @@ export class WorkflowListComponent {
     this.submitting.set(true);
     this.workflowsSvc
       .create(request)
-      .pipe(takeUntilDestroyed(), finalize(() => this.submitting.set(false)))
+      .pipe(takeUntilDestroyed(this.destroyRef), finalize(() => this.submitting.set(false)))
       .subscribe({
         next: () => {
           this.showCreate.set(false);

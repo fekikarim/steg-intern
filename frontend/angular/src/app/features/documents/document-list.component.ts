@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { debounceTime, finalize } from 'rxjs';
@@ -12,6 +12,8 @@ import { ErrorStateComponent } from '../../shared/components/error-state/error-s
 import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
 import { DocumentsService } from '../../core/services/documents.service';
 import { InternshipsService } from '../../core/services/internships.service';
+import { RealtimeService } from '../../core/services/realtime.service';
+import { RealtimeEvent } from '../../core/models/realtime.model';
 import { ToastService } from '../../core/services/toast.service';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { DocumentResponse, DocumentType, UploadDocumentRequest } from '../../core/models/document.model';
@@ -116,9 +118,10 @@ function formatSize(size?: number): string {
       }
     }
 
-    <steg-modal [open]="showRegister()" title="Register document" (dismissed)="closeRegister()">
+    <steg-modal [open]="showRegister()" title="Register document" [subtitle]="'Upload a new document'" (dismissed)="closeRegister()">
       <form [formGroup]="form" (ngSubmit)="save()" novalidate>
-        <div class="form-stack">
+        <div class="form-section">
+          <p class="form-section-title">Document information</p>
           <steg-field label="Internship" [required]="true" [invalid]="fieldInvalid('internshipId')" [error]="fieldError('internshipId')">
             <steg-select
               formControlName="internshipId"
@@ -215,9 +218,6 @@ function formatSize(size?: number): string {
         display: grid;
         gap: 1rem;
       }
-      .form-grid {
-        grid-template-columns: 1fr 1fr;
-      }
       .native-input {
         width: 100%;
         padding: 0.55rem 0.75rem;
@@ -228,9 +228,6 @@ function formatSize(size?: number): string {
         font-size: 0.875rem;
       }
       @media (max-width: 640px) {
-        .form-grid {
-          grid-template-columns: 1fr;
-        }
         .filters {
           flex-direction: column;
         }
@@ -250,10 +247,12 @@ function formatSize(size?: number): string {
 })
 export class DocumentListComponent {
   private readonly fb = inject(FormBuilder);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly documentsSvc = inject(DocumentsService);
   private readonly internships = inject(InternshipsService);
   private readonly toast = inject(ToastService);
   private readonly confirm = inject(ConfirmService);
+  private readonly realtime = inject(RealtimeService);
 
   protected readonly loading = signal(false);
   protected readonly failed = signal(false);
@@ -313,14 +312,20 @@ export class DocumentListComponent {
   constructor() {
     this.loadInternships();
     this.filterForm.valueChanges
-      .pipe(takeUntilDestroyed(), debounceTime(300))
+      .pipe(takeUntilDestroyed(this.destroyRef), debounceTime(300))
       .subscribe(() => this.load());
+
+    // Real-time sync
+    this.realtime.of('DOCUMENT').pipe(
+      takeUntilDestroyed(this.destroyRef),
+      debounceTime(300)
+    ).subscribe(() => this.load());
   }
 
   private loadInternships(): void {
     this.internships
       .getAll({ page: 0, size: 100 })
-      .pipe(takeUntilDestroyed())
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (data) =>
           this.internshipsList.set(
@@ -341,7 +346,7 @@ export class DocumentListComponent {
     this.failed.set(false);
     this.documentsSvc
       .getByInternship(internshipId)
-      .pipe(takeUntilDestroyed(), finalize(() => this.loading.set(false)))
+      .pipe(takeUntilDestroyed(this.destroyRef), finalize(() => this.loading.set(false)))
       .subscribe({
         next: (data) => this.documents.set(data),
         error: (error: { message?: string }) => {
@@ -377,7 +382,7 @@ export class DocumentListComponent {
     }
     this.documentsSvc
       .delete(doc.id)
-      .pipe(takeUntilDestroyed())
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: () => {
           this.toast.success('Document deleted', doc.reference);
@@ -405,7 +410,7 @@ export class DocumentListComponent {
     this.submitting.set(true);
     this.documentsSvc
       .upload(request)
-      .pipe(takeUntilDestroyed(), finalize(() => this.submitting.set(false)))
+      .pipe(takeUntilDestroyed(this.destroyRef), finalize(() => this.submitting.set(false)))
       .subscribe({
         next: () => {
           this.showRegister.set(false);

@@ -50,9 +50,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private String extractJwtFromRequest(HttpServletRequest request) {
+        // Standard Bearer token in Authorization header
         String bearerToken = request.getHeader("Authorization");
         if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
             return bearerToken.substring(7);
+        }
+        // Fallback: token query parameter (used by EventSource/SSE which cannot set headers)
+        String tokenParam = request.getParameter("token");
+        if (StringUtils.hasText(tokenParam)) {
+            return tokenParam;
         }
         return null;
     }

@@ -18,6 +18,8 @@ import tn.steg.backend.departments.repository.EmployeeRepository;
 import tn.steg.backend.departments.repository.SupervisorRepository;
 import tn.steg.backend.exception.BusinessException;
 import tn.steg.backend.exception.ResourceNotFoundException;
+import tn.steg.backend.realtime.RealtimeEvent;
+import tn.steg.backend.realtime.RealtimeService;
 import tn.steg.backend.internships.entity.Internship;
 import tn.steg.backend.internships.entity.InternshipStatus;
 import tn.steg.backend.internships.repository.InternshipRepository;
@@ -40,6 +42,7 @@ public class AssignmentServiceImpl implements AssignmentService {
     private final SupervisorRepository supervisorRepository;
     private final EmployeeRepository employeeRepository;
     private final InternOwnershipService internOwnershipService;
+    private final RealtimeService realtimeService;
 
     /**
      * Explicit assignment state machine. Illegal transitions are rejected.
@@ -134,7 +137,9 @@ public class AssignmentServiceImpl implements AssignmentService {
                 .assignedBy(assignedBy)
                 .build();
 
-        return toResponse(assignmentRepository.save(assignment));
+        InternshipAssignment saved = assignmentRepository.save(assignment);
+        realtimeService.broadcast(RealtimeEvent.of(RealtimeEvent.Entity.ASSIGNMENT, RealtimeEvent.Action.CREATED, saved.getId().toString()));
+        return toResponse(saved);
     }
 
     @Override
@@ -151,7 +156,9 @@ public class AssignmentServiceImpl implements AssignmentService {
             }
         }
         assignment.setStatus(status);
-        return toResponse(assignmentRepository.save(assignment));
+        InternshipAssignment saved = assignmentRepository.save(assignment);
+        realtimeService.broadcast(RealtimeEvent.of(RealtimeEvent.Entity.ASSIGNMENT, RealtimeEvent.Action.STATUS_CHANGED, saved.getId().toString()));
+        return toResponse(saved);
     }
 
     @Override
@@ -162,6 +169,7 @@ public class AssignmentServiceImpl implements AssignmentService {
             throw new ResourceNotFoundException("Assignment not found");
         }
         assignmentRepository.deleteById(id);
+        realtimeService.broadcast(RealtimeEvent.of(RealtimeEvent.Entity.ASSIGNMENT, RealtimeEvent.Action.DELETED, id.toString()));
     }
 
     private AssignmentResponse toResponse(InternshipAssignment a) {

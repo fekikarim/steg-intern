@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { debounceTime, finalize } from 'rxjs';
@@ -186,6 +186,7 @@ import { AuditResponse } from '../../core/models/admin.model';
 })
 export class AuditViewerComponent {
   private readonly fb = inject(FormBuilder);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly audit = inject(AuditService);
   private readonly toast = inject(ToastService);
 
@@ -227,7 +228,7 @@ export class AuditViewerComponent {
   protected readonly trackById = (row: AuditResponse): string => row.id;
 
   constructor() {
-    this.filterForm.valueChanges.pipe(takeUntilDestroyed(), debounceTime(400)).subscribe(() => {
+    this.filterForm.valueChanges.pipe(takeUntilDestroyed(this.destroyRef), debounceTime(400)).subscribe(() => {
       this.pageable.page = 0;
       this.load();
     });
@@ -248,7 +249,7 @@ export class AuditViewerComponent {
         from,
         to
       })
-      .pipe(takeUntilDestroyed(), finalize(() => this.loading.set(false)))
+      .pipe(takeUntilDestroyed(this.destroyRef), finalize(() => this.loading.set(false)))
       .subscribe({
         next: (data) => this.page.set(data),
         error: (error: { message?: string }) => {

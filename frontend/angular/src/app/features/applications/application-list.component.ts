@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { debounceTime, finalize } from 'rxjs';
@@ -13,6 +13,8 @@ import { ButtonComponent } from '../../shared/components/button/button.component
 import { ErrorStateComponent } from '../../shared/components/error-state/error-state.component';
 import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
 import { ApplicationsService } from '../../core/services/applications.service';
+import { RealtimeService } from '../../core/services/realtime.service';
+import { RealtimeEvent } from '../../core/models/realtime.model';
 import { ToastService } from '../../core/services/toast.service';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { Page, Pageable } from '../../core/models/api.model';
@@ -99,13 +101,14 @@ type ApplicationAction = 'submit' | 'review' | 'accept' | 'reject' | 'delete';
       }
     }
 
-    <steg-modal [open]="showModal()" title="New application (manual entry)" (dismissed)="closeModal()">
+    <steg-modal [open]="showModal()" title="New application (manual entry)" [subtitle]="'Submit a new internship application'" (dismissed)="closeModal()">
       <form [formGroup]="form" (ngSubmit)="save()" novalidate>
         <p class="modal-hint">
           Register an application received directly (physical submission). Candidate details are
           created inline and converge into the same workflow as online applications.
         </p>
-        <div class="form-grid">
+        <div class="form-section">
+          <p class="form-section-title">Application details</p>
           <steg-field label="First name" [required]="true" [invalid]="fieldInvalid('firstName')" [error]="fieldError('firstName')">
             <steg-input formControlName="firstName" type="text" id="app-firstName" name="firstName" placeholder="First name" [invalid]="fieldInvalid('firstName')" />
           </steg-field>
@@ -160,15 +163,7 @@ type ApplicationAction = 'submit' | 'review' | 'accept' | 'reject' | 'delete';
       .panel {
         padding: 1.25rem;
       }
-      .form-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 1rem;
-      }
       @media (max-width: 640px) {
-        .form-grid {
-          grid-template-columns: 1fr;
-        }
         .search-input {
           width: 100%;
         }
@@ -187,9 +182,11 @@ type ApplicationAction = 'submit' | 'review' | 'accept' | 'reject' | 'delete';
 })
 export class ApplicationListComponent {
   private readonly fb = inject(FormBuilder);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly applications = inject(ApplicationsService);
   private readonly toast = inject(ToastService);
   private readonly confirm = inject(ConfirmService);
+  private readonly realtime = inject(RealtimeService);
 
   protected readonly loading = signal(true);
   protected readonly failed = signal(false);
@@ -237,12 +234,18 @@ export class ApplicationListComponent {
 
   constructor() {
     this.filterForm.valueChanges
-      .pipe(takeUntilDestroyed(), debounceTime(300))
+      .pipe(takeUntilDestroyed(this.destroyRef), debounceTime(300))
       .subscribe(() => {
         this.pageable.page = 0;
         this.load();
       });
     this.load();
+
+    // Real-time sync
+    this.realtime.of('APPLICATION').pipe(
+      takeUntilDestroyed(this.destroyRef),
+      debounceTime(300)
+    ).subscribe(() => this.load());
   }
 
   protected load(): void {
@@ -253,7 +256,7 @@ export class ApplicationListComponent {
     this.pageable.sort = s ? `${s.key},${s.direction}` : undefined;
     this.applications
       .getAll(this.pageable, { search: v.search || undefined, status: v.status })
-      .pipe(takeUntilDestroyed(), finalize(() => this.loading.set(false)))
+      .pipe(takeUntilDestroyed(this.destroyRef), finalize(() => this.loading.set(false)))
       .subscribe({
         next: (data) => this.page.set(data),
         error: (error: { message?: string }) => {
@@ -295,13 +298,13 @@ export class ApplicationListComponent {
   protected async run(action: ApplicationAction, app: ApplicationResponse): Promise<void> {
     try {
       if (action === 'submit') {
-        await this.applications.submit(app.id).pipe(takeUntilDestroyed()).toPromise();
+        await this.applications.submit(app.id).pipe(takeUntilDestroyed(this.destroyRef)).toPromise();
         this.toast.success('Application submitted', app.reference);
         this.load();
         return;
       }
       if (action === 'review') {
-        await this.applications.updateStatus(app.id, 'UNDER_REVIEW').pipe(takeUntilDestroyed()).toPromise();
+        await this.applications.updateStatus(app.id, 'UNDER_REVIEW').pipe(takeUntilDestroyed(this.destroyRef)).toPromise();
         this.toast.success('Application under review', app.reference);
         this.load();
         return;
@@ -315,7 +318,7 @@ export class ApplicationListComponent {
         if (!ok) {
           return;
         }
-        await this.applications.accept(app.id).pipe(takeUntilDestroyed()).toPromise();
+        await this.applications.accept(app.id).pipe(takeUntilDestroyed(this.destroyRef)).toPromise();
         this.toast.success('Application accepted', app.reference);
         this.load();
         return;
@@ -330,7 +333,7 @@ export class ApplicationListComponent {
         if (!ok) {
           return;
         }
-        await this.applications.reject(app.id).pipe(takeUntilDestroyed()).toPromise();
+        await this.applications.reject(app.id).pipe(takeUntilDestroyed(this.destroyRef)).toPromise();
         this.toast.success('Application rejected', app.reference);
         this.load();
       }
@@ -366,7 +369,7 @@ export class ApplicationListComponent {
     };
     this.applications
       .create(request)
-      .pipe(takeUntilDestroyed(), finalize(() => this.submitting.set(false)))
+      .pipe(takeUntilDestroyed(this.destroyRef), finalize(() => this.submitting.set(false)))
       .subscribe({
         next: () => {
           this.showModal.set(false);

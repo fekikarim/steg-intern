@@ -14,6 +14,8 @@ import tn.steg.backend.candidates.entity.Candidate;
 import tn.steg.backend.candidates.repository.CandidateRepository;
 import tn.steg.backend.candidates.service.CandidateService;
 import tn.steg.backend.exception.BusinessException;
+import tn.steg.backend.realtime.RealtimeEvent;
+import tn.steg.backend.realtime.RealtimeService;
 import tn.steg.backend.exception.ResourceNotFoundException;
 import tn.steg.backend.security.CurrentUserService;
 import tn.steg.backend.users.entity.User;
@@ -28,6 +30,7 @@ public class CandidateServiceImpl implements CandidateService {
     private final CandidateRepository candidateRepository;
     private final UserRepository userRepository;
     private final CurrentUserService currentUserService;
+    private final RealtimeService realtimeService;
 
     @Override
     @Transactional(readOnly = true)
@@ -73,7 +76,9 @@ public class CandidateServiceImpl implements CandidateService {
                 .languages(request.getLanguages())
                 .user(resolveUser(request.getUserId()))
                 .build();
-        return toResponse(candidateRepository.save(candidate));
+        Candidate saved = candidateRepository.save(candidate);
+        realtimeService.broadcast(RealtimeEvent.of(RealtimeEvent.Entity.CANDIDATE, RealtimeEvent.Action.CREATED, saved.getId().toString()));
+        return toResponse(saved);
     }
 
     @Override
@@ -102,7 +107,9 @@ public class CandidateServiceImpl implements CandidateService {
         if (request.getLanguages() != null) candidate.setLanguages(request.getLanguages());
         if (request.getUserId() != null) candidate.setUser(resolveUser(request.getUserId()));
 
-        return toResponse(candidateRepository.save(candidate));
+        Candidate updated = candidateRepository.save(candidate);
+        realtimeService.broadcast(RealtimeEvent.of(RealtimeEvent.Entity.CANDIDATE, RealtimeEvent.Action.UPDATED, updated.getId().toString()));
+        return toResponse(updated);
     }
 
     private void assertEmailUnique(String email, UUID currentId) {

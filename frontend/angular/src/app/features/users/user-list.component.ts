@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { debounceTime, finalize } from 'rxjs';
@@ -17,6 +17,7 @@ import { UsersService } from '../../core/services/users.service';
 import { RolesService } from '../../core/services/roles.service';
 import { ToastService } from '../../core/services/toast.service';
 import { ConfirmService } from '../../core/services/confirm.service';
+import { RealtimeService } from '../../core/services/realtime.service';
 import { Page, Pageable } from '../../core/models/api.model';
 import { UserResponse, UserStatus, RoleResponse } from '../../core/models/user.model';
 import { CreateUserRequest, UpdateUserRequest } from '../../core/models/admin.model';
@@ -119,49 +120,52 @@ type UserAction = 'edit' | 'toggleEnable' | 'toggleLock' | 'delete';
       }
     }
 
-    <steg-modal [open]="showModal()" [title]="editing() ? 'Edit user' : 'Create user'" (dismissed)="closeModal()">
+    <steg-modal [open]="showModal()" [title]="editing() ? 'Edit user' : 'Create user'" [subtitle]="editing() ? 'Update account details and role assignment' : 'Add a new administrator account to the platform'" (dismissed)="closeModal()">
       <form [formGroup]="form" (ngSubmit)="save()" novalidate>
-        <div class="form-grid">
-          <steg-field label="Email" [required]="true" [invalid]="fieldInvalid('email')" [error]="fieldError('email')">
-            <steg-input
-              formControlName="email"
-              type="email"
-              id="user-email"
-              name="email"
-              autocomplete="off"
-              placeholder="name@steg.tn"
-              [invalid]="fieldInvalid('email')"
-            />
-          </steg-field>
-
-          @if (!editing()) {
-            <steg-field label="Password" [required]="true" [invalid]="fieldInvalid('password')" [error]="passwordError()">
+        <div class="form-section">
+          <p class="form-section-title">Account details</p>
+          <div class="form-grid">
+            <steg-field label="Email" [required]="true" [invalid]="fieldInvalid('email')" [error]="fieldError('email')">
               <steg-input
-                formControlName="password"
-                type="password"
-                id="user-password"
-                name="password"
-                autocomplete="new-password"
-                placeholder="Min. 12 characters"
-                [invalid]="fieldInvalid('password')"
+                formControlName="email"
+                type="email"
+                id="user-email"
+                name="email"
+                autocomplete="off"
+                placeholder="name@steg.tn"
+                [invalid]="fieldInvalid('email')"
               />
             </steg-field>
-          }
 
-          <steg-field label="Role" [required]="true" [invalid]="fieldInvalid('roleId')" [error]="fieldError('roleId')">
-            <steg-select
-              formControlName="roleId"
-              id="user-role"
-              name="role"
-              placeholder="Select a role"
-              [invalid]="fieldInvalid('roleId')"
-              [options]="roleFormOptions()"
-            />
-          </steg-field>
+            @if (!editing()) {
+              <steg-field label="Password" [required]="true" [invalid]="fieldInvalid('password')" [error]="passwordError()">
+                <steg-input
+                  formControlName="password"
+                  type="password"
+                  id="user-password"
+                  name="password"
+                  autocomplete="new-password"
+                  placeholder="Min. 12 characters"
+                  [invalid]="fieldInvalid('password')"
+                />
+              </steg-field>
+            }
 
-          <steg-field label="Account enabled">
-            <steg-switch id="user-enabled" formControlName="enabled" label="Allow sign in" />
-          </steg-field>
+            <steg-field label="Role" [required]="true" [invalid]="fieldInvalid('roleId')" [error]="fieldError('roleId')">
+              <steg-select
+                formControlName="roleId"
+                id="user-role"
+                name="role"
+                placeholder="Select a role"
+                [invalid]="fieldInvalid('roleId')"
+                [options]="roleFormOptions()"
+              />
+            </steg-field>
+
+            <steg-field label="Account status">
+              <steg-switch id="user-enabled" formControlName="enabled" label="Allow sign in" />
+            </steg-field>
+          </div>
         </div>
 
         <div modal-footer>
@@ -226,10 +230,12 @@ type UserAction = 'edit' | 'toggleEnable' | 'toggleLock' | 'delete';
 })
 export class UserListComponent {
   private readonly fb = inject(FormBuilder);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly users = inject(UsersService);
   private readonly roles = inject(RolesService);
   private readonly toast = inject(ToastService);
   private readonly confirm = inject(ConfirmService);
+  private readonly realtime = inject(RealtimeService);
 
   protected readonly loading = signal(true);
   protected readonly failed = signal(false);
@@ -285,17 +291,18 @@ export class UserListComponent {
   constructor() {
     this.loadRoles();
     this.filterForm.valueChanges
-      .pipe(takeUntilDestroyed(), debounceTime(300))
+      .pipe(takeUntilDestroyed(this.destroyRef), debounceTime(300))
       .subscribe(() => {
         const v = this.filterForm.getRawValue();
         this.pageable.page = 0;
         this.load();
       });
     this.load();
+    this.realtime.of('USER').pipe(takeUntilDestroyed(this.destroyRef), debounceTime(300)).subscribe(() => this.load());
   }
 
   private loadRoles(): void {
-    this.roles.getAll().pipe(takeUntilDestroyed()).subscribe({
+    this.roles.getAll().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (roles) => this.rolesList.set(roles),
       error: () => this.rolesList.set([])
     });
@@ -313,7 +320,7 @@ export class UserListComponent {
         roleName: v.role || undefined,
         status: v.status || undefined
       })
-      .pipe(takeUntilDestroyed(), finalize(() => this.loading.set(false)))
+      .pipe(takeUntilDestroyed(this.destroyRef), finalize(() => this.loading.set(false)))
       .subscribe({
         next: (data) => this.page.set(data),
         error: (error: { message?: string }) => {
@@ -379,10 +386,10 @@ export class UserListComponent {
           return;
         }
         if (user.enabled) {
-          await this.users.disable(user.id).pipe(takeUntilDestroyed()).toPromise();
+          await this.users.disable(user.id).pipe(takeUntilDestroyed(this.destroyRef)).toPromise();
           this.toast.success('User disabled', `${user.email} can no longer sign in.`);
         } else {
-          await this.users.enable(user.id).pipe(takeUntilDestroyed()).toPromise();
+          await this.users.enable(user.id).pipe(takeUntilDestroyed(this.destroyRef)).toPromise();
           this.toast.success('User enabled', `${user.email} can now sign in.`);
         }
         this.load();
@@ -401,10 +408,10 @@ export class UserListComponent {
           return;
         }
         if (locked) {
-          await this.users.unlock(user.id).pipe(takeUntilDestroyed()).toPromise();
+          await this.users.unlock(user.id).pipe(takeUntilDestroyed(this.destroyRef)).toPromise();
           this.toast.success('User unlocked', `${user.email} can sign in again.`);
         } else {
-          await this.users.lock(user.id).pipe(takeUntilDestroyed()).toPromise();
+          await this.users.lock(user.id).pipe(takeUntilDestroyed(this.destroyRef)).toPromise();
           this.toast.success('User locked', `${user.email} is locked.`);
         }
         this.load();
@@ -420,7 +427,7 @@ export class UserListComponent {
         if (!ok) {
           return;
         }
-        await this.users.delete(user.id).pipe(takeUntilDestroyed()).toPromise();
+        await this.users.delete(user.id).pipe(takeUntilDestroyed(this.destroyRef)).toPromise();
         this.toast.success('User deleted', `${user.email} was removed.`);
         this.load();
       }
@@ -445,7 +452,7 @@ export class UserListComponent {
     const op = editing
       ? this.users.update(editing.id, { email, roleId, enabled } satisfies UpdateUserRequest)
       : this.users.create({ email, password, roleId, enabled } satisfies CreateUserRequest);
-    op.pipe(takeUntilDestroyed(), finalize(() => this.submitting.set(false))).subscribe({
+    op.pipe(takeUntilDestroyed(this.destroyRef), finalize(() => this.submitting.set(false))).subscribe({
       next: () => {
         this.showModal.set(false);
         this.toast.success(editing ? 'User updated' : 'User created', email);

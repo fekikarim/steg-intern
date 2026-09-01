@@ -1,7 +1,7 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { finalize } from 'rxjs';
+import { debounceTime, finalize } from 'rxjs';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { ModalComponent } from '../../shared/components/modal/modal.component';
 import { FieldComponent } from '../../shared/components/field/field.component';
@@ -11,6 +11,8 @@ import { ButtonComponent } from '../../shared/components/button/button.component
 import { ErrorStateComponent } from '../../shared/components/error-state/error-state.component';
 import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
 import { DepartmentsService } from '../../core/services/departments.service';
+import { RealtimeService } from '../../core/services/realtime.service';
+import { RealtimeEvent } from '../../core/models/realtime.model';
 import { ToastService } from '../../core/services/toast.service';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { DepartmentResponse } from '../../core/models/admin.model';
@@ -95,9 +97,10 @@ interface DeptNode {
       </div>
     }
 
-    <steg-modal [open]="showModal()" [title]="editing() ? 'Edit department' : 'Create department'" (dismissed)="closeModal()">
+    <steg-modal [open]="showModal()" [title]="editing() ? 'Edit department' : 'Create department'" [subtitle]="editing() ? 'Update department information' : 'Add a new department'" (dismissed)="closeModal()">
       <form [formGroup]="form" (ngSubmit)="save()" novalidate>
-        <div class="form-grid">
+        <div class="form-section">
+          <p class="form-section-title">Department information</p>
           <steg-field label="Code" [required]="true" [invalid]="fieldInvalid('code')" [error]="fieldError('code')">
             <steg-input formControlName="code" id="dept-code" name="code" placeholder="e.g. HR-DEPT" [invalid]="fieldInvalid('code')" />
           </steg-field>
@@ -185,11 +188,6 @@ interface DeptNode {
         gap: 0.25rem;
         justify-content: flex-end;
       }
-      .form-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 1rem;
-      }
       @media (max-width: 760px) {
         .tree-row {
           grid-template-columns: calc(var(--depth) * 1.25rem) 1.25rem 1fr auto;
@@ -200,18 +198,17 @@ interface DeptNode {
         .dept-desc {
           display: none;
         }
-        .form-grid {
-          grid-template-columns: 1fr;
-        }
       }
     `
   ]
 })
 export class DepartmentListComponent {
   private readonly fb = inject(FormBuilder);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly departments = inject(DepartmentsService);
   private readonly toast = inject(ToastService);
   private readonly confirm = inject(ConfirmService);
+  private readonly realtime = inject(RealtimeService);
 
   protected readonly loading = signal(true);
   protected readonly failed = signal(false);
@@ -233,6 +230,12 @@ export class DepartmentListComponent {
 
   constructor() {
     this.load();
+
+    // Real-time sync
+    this.realtime.of('DEPARTMENT').pipe(
+      takeUntilDestroyed(this.destroyRef),
+      debounceTime(300)
+    ).subscribe(() => this.load());
   }
 
   protected readonly allRows = computed<DeptNode[]>(() => {
@@ -291,7 +294,7 @@ export class DepartmentListComponent {
   protected load(): void {
     this.loading.set(true);
     this.failed.set(false);
-    this.departments.getAll().pipe(takeUntilDestroyed(), finalize(() => this.loading.set(false))).subscribe({
+    this.departments.getAll().pipe(takeUntilDestroyed(this.destroyRef), finalize(() => this.loading.set(false))).subscribe({
       next: (data) => {
         this.departmentList.set(data);
         this.expanded.set(new Set());
@@ -347,7 +350,7 @@ export class DepartmentListComponent {
       return;
     }
     try {
-      await this.departments.delete(node.id).pipe(takeUntilDestroyed()).toPromise();
+      await this.departments.delete(node.id).pipe(takeUntilDestroyed(this.destroyRef)).toPromise();
       this.toast.success('Department deleted', node.name);
       this.load();
     } catch (error) {
@@ -372,7 +375,7 @@ export class DepartmentListComponent {
     const op = editing
       ? this.departments.update(editing.id, request)
       : this.departments.create(request);
-    op.pipe(takeUntilDestroyed(), finalize(() => this.submitting.set(false))).subscribe({
+    op.pipe(takeUntilDestroyed(this.destroyRef), finalize(() => this.submitting.set(false))).subscribe({
       next: () => {
         this.showModal.set(false);
         this.toast.success(editing ? 'Department updated' : 'Department created', name);

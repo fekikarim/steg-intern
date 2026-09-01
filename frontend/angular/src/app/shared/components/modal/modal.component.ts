@@ -26,7 +26,12 @@ const FOCUSABLE =
       <div class="modal-overlay" role="presentation" (click)="onOverlayClick()">
         <div class="modal" #dialog [class.modal-sm]="size() === 'sm'" [class.modal-lg]="size() === 'lg'" (click)="$event.stopPropagation()">
           <header class="modal-header">
-            <h2 class="modal-title" id="steg-modal-title">{{ title() }}</h2>
+            <div class="modal-header-text">
+              <h2 class="modal-title" id="steg-modal-title">{{ title() }}</h2>
+              @if (subtitle()) {
+                <p class="modal-subtitle">{{ subtitle() }}</p>
+              }
+            </div>
             <button class="modal-close" type="button" (click)="dismissed.emit()" aria-label="Close">
               <svg class="modal-close-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M6 6l12 12M18 6 6 18"/>
@@ -75,14 +80,27 @@ const FOCUSABLE =
       }
       .modal-header {
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         justify-content: space-between;
-        padding: 1rem 1.5rem;
+        padding: 1.25rem 1.5rem 1rem;
         border-bottom: 1px solid var(--color-border);
       }
+      .modal-header-text {
+        flex: 1;
+        min-width: 0;
+      }
       .modal-title {
-        font-size: 1.0625rem;
+        font-size: 1.125rem;
+        font-weight: 600;
         margin: 0;
+        color: var(--color-text);
+        letter-spacing: -0.01em;
+      }
+      .modal-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-text-muted);
+        margin: 0.25rem 0 0;
+        line-height: 1.4;
       }
       .modal-close {
         background: none;
@@ -113,8 +131,10 @@ const FOCUSABLE =
         border-top: 1px solid var(--color-border);
         display: flex;
         justify-content: flex-end;
-        gap: 0.625rem;
+        gap: 0.75rem;
         flex-wrap: wrap;
+        background: var(--color-surface-alt);
+        border-radius: 0 0 var(--radius-lg) var(--radius-lg);
       }
       @keyframes overlay-in {
         from {
@@ -142,6 +162,7 @@ export class ModalComponent {
 
   readonly open = input(false);
   readonly title = input('');
+  readonly subtitle = input('');
   readonly size = input<'sm' | 'md' | 'lg'>('md');
   readonly dismissed = output<void>();
 

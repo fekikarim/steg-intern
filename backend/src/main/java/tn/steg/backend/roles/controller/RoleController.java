@@ -51,4 +51,12 @@ public class RoleController {
     public ResponseEntity<RoleResponse> updateRole(@PathVariable UUID id, @Valid @RequestBody UpdateRoleRequest request) {
         return ResponseEntity.ok(roleService.updateRole(id, request));
     }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMINISTRATOR')")
+    @Operation(summary = "Delete role", description = "Delete a role that is not assigned to any user")
+    public ResponseEntity<Void> deleteRole(@PathVariable UUID id) {
+        roleService.deleteRole(id);
+        return ResponseEntity.noContent().build();
+    }
 }

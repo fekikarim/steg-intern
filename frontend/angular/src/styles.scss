@@ -294,8 +294,9 @@ textarea {
 
 .form-label {
   font-size: 0.8125rem;
-  font-weight: 500;
-  color: var(--color-text-secondary);
+  font-weight: 600;
+  color: var(--color-text);
+  letter-spacing: 0.01em;
 }
 
 .form-control {
@@ -304,11 +305,18 @@ textarea {
   background-color: var(--color-surface);
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  color: var(--color-text);
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .form-control::placeholder {
   color: var(--color-text-muted);
+  font-weight: 400;
+}
+
+.form-control:hover:not(:disabled):not(:focus) {
+  border-color: var(--color-text-muted);
 }
 
 .form-control:focus {
@@ -328,11 +336,50 @@ textarea {
 .form-hint {
   font-size: 0.75rem;
   color: var(--color-text-muted);
+  line-height: 1.4;
 }
 
 .form-error {
   font-size: 0.75rem;
   color: var(--color-danger);
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+/* ---- Form sections (inside modals) --------------------------------------- */
+.form-section {
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+}
+
+.form-section-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+  margin: 0 0 1rem 0;
+  padding-bottom: 0.625rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* ---- Form grid (2-col inside modals) ------------------------------------- */
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+}
+
+.form-grid-1 {
+  grid-template-columns: 1fr;
+}
+
+@media (max-width: 640px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ---- Toolbars & search ------------------------------------------------ */

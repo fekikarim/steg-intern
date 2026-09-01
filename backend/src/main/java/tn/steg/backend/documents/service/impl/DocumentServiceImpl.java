@@ -9,6 +9,8 @@ import tn.steg.backend.documents.entity.*;
 import tn.steg.backend.documents.repository.DocumentRepository;
 import tn.steg.backend.documents.service.DocumentService;
 import tn.steg.backend.exception.ResourceNotFoundException;
+import tn.steg.backend.realtime.RealtimeEvent;
+import tn.steg.backend.realtime.RealtimeService;
 import tn.steg.backend.internships.entity.Internship;
 import tn.steg.backend.internships.repository.InternshipRepository;
 import tn.steg.backend.security.InternOwnershipService;
@@ -24,6 +26,7 @@ public class DocumentServiceImpl implements DocumentService {
     private final DocumentRepository documentRepository;
     private final InternshipRepository internshipRepository;
     private final InternOwnershipService internOwnershipService;
+    private final RealtimeService realtimeService;
 
     @Override
     @Transactional(readOnly = true)
@@ -48,7 +51,9 @@ public class DocumentServiceImpl implements DocumentService {
         doc.setGeneratedAutomatically(false);
         doc.setInternship(internship);
 
-        return toResponse(documentRepository.save(doc));
+        InternshipDocument saved = documentRepository.save(doc);
+        realtimeService.broadcast(RealtimeEvent.of(RealtimeEvent.Entity.DOCUMENT, RealtimeEvent.Action.CREATED, saved.getId().toString()));
+        return toResponse(saved);
     }
 
     @Override
@@ -58,6 +63,7 @@ public class DocumentServiceImpl implements DocumentService {
             throw new ResourceNotFoundException("Document not found");
         }
         documentRepository.deleteById(id);
+        realtimeService.broadcast(RealtimeEvent.of(RealtimeEvent.Entity.DOCUMENT, RealtimeEvent.Action.DELETED, id.toString()));
     }
 
     private DocumentResponse toResponse(Document doc) {

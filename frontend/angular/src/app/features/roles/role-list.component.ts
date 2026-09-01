@@ -1,7 +1,7 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { FormArray, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { finalize } from 'rxjs';
+import { debounceTime, finalize } from 'rxjs';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { TableComponent, TableColumn } from '../../shared/components/table/table.component';
 import { ModalComponent } from '../../shared/components/modal/modal.component';
@@ -13,7 +13,10 @@ import { ErrorStateComponent } from '../../shared/components/error-state/error-s
 import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
 import { RolesService } from '../../core/services/roles.service';
 import { PermissionsService } from '../../core/services/permissions.service';
+import { RealtimeService } from '../../core/services/realtime.service';
+import { RealtimeEvent } from '../../core/models/realtime.model';
 import { ToastService } from '../../core/services/toast.service';
+import { ConfirmService } from '../../core/services/confirm.service';
 import { RoleResponse } from '../../core/models/user.model';
 import { Permission } from '../../core/models/admin.model';
 
@@ -74,6 +77,7 @@ interface PermissionGroup {
       >
         <ng-template #actionsRow let-row>
           <steg-button variant="ghost" size="sm" label="Edit" (click)="openEdit(row)" />
+          <steg-button variant="danger" size="sm" label="Delete" (click)="delete(row)" />
         </ng-template>
       </steg-table>
 
@@ -84,9 +88,10 @@ interface PermissionGroup {
       }
     }
 
-    <steg-modal [open]="showModal()" [title]="editing() ? 'Edit role' : 'Create role'" size="lg" (dismissed)="closeModal()">
+    <steg-modal [open]="showModal()" [title]="editing() ? 'Edit role' : 'Create role'" [subtitle]="editing() ? 'Update role details' : 'Define a new role and permissions'" size="lg" (dismissed)="closeModal()">
       <form [formGroup]="form" (ngSubmit)="save()" novalidate>
-        <div class="form-grid">
+        <div class="form-section">
+          <p class="form-section-title">Role definition</p>
           <steg-field label="Name" [required]="true" [invalid]="fieldInvalid('name')" [error]="fieldError('name')">
             <steg-input
               formControlName="name"
@@ -146,12 +151,6 @@ interface PermissionGroup {
       .panel {
         padding: 1.25rem;
       }
-      .form-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 1rem;
-        margin-bottom: 1rem;
-      }
       .perms-head {
         display: flex;
         align-items: center;
@@ -188,9 +187,6 @@ interface PermissionGroup {
         gap: 0.35rem;
       }
       @media (max-width: 640px) {
-        .form-grid {
-          grid-template-columns: 1fr;
-        }
         .perms-grid {
           grid-template-columns: 1fr;
         }
@@ -200,9 +196,12 @@ interface PermissionGroup {
 })
 export class RoleListComponent {
   private readonly fb = inject(FormBuilder);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly roles = inject(RolesService);
   private readonly perms = inject(PermissionsService);
   private readonly toast = inject(ToastService);
+  private readonly confirm = inject(ConfirmService);
+  private readonly realtime = inject(RealtimeService);
 
   protected readonly loading = signal(true);
   protected readonly failed = signal(false);
@@ -258,6 +257,12 @@ export class RoleListComponent {
   constructor() {
     this.loadPermissions();
     this.load();
+
+    // Real-time sync
+    this.realtime.of('ROLE').pipe(
+      takeUntilDestroyed(this.destroyRef),
+      debounceTime(300)
+    ).subscribe(() => this.load());
   }
 
   get permControls(): FormArray {
@@ -274,7 +279,7 @@ export class RoleListComponent {
   }
 
   private loadPermissions(): void {
-    this.perms.getAll().pipe(takeUntilDestroyed()).subscribe({
+    this.perms.getAll().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (list) => {
         this.permissions.set(list);
         this.buildPermControls(new Set());
@@ -293,7 +298,7 @@ export class RoleListComponent {
   protected load(): void {
     this.loading.set(true);
     this.failed.set(false);
-    this.roles.getAll().pipe(takeUntilDestroyed(), finalize(() => this.loading.set(false))).subscribe({
+    this.roles.getAll().pipe(takeUntilDestroyed(this.destroyRef), finalize(() => this.loading.set(false))).subscribe({
       next: (data) => this.roleList.set(data),
       error: (error: { message?: string }) => {
         this.failed.set(true);
@@ -333,6 +338,27 @@ export class RoleListComponent {
     this.showModal.set(false);
   }
 
+  protected async delete(role: RoleResponse): Promise<void> {
+    const ok = await this.confirm.confirm({
+      title: 'Delete role?',
+      message: `Are you sure you want to delete the role "${role.name}"? This action cannot be undone.`,
+      confirmText: 'Delete',
+      danger: true
+    });
+    if (!ok) {
+      return;
+    }
+    this.roles.delete(role.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: () => {
+        this.toast.success('Role deleted', role.name);
+        this.load();
+      },
+      error: (error: { message?: string }) => {
+        this.toast.error('Delete failed', error.message ?? 'Could not delete role.');
+      }
+    });
+  }
+
   protected setAll(value: boolean): void {
     for (const control of this.permControls.controls) {
       control.setValue(value, { emitEvent: false });
@@ -353,7 +379,7 @@ export class RoleListComponent {
       .map((p) => p.id);
     const request = { name, description, permissionIds };
     const op = editing ? this.roles.update(editing.id, request) : this.roles.create(request);
-    op.pipe(takeUntilDestroyed(), finalize(() => this.submitting.set(false))).subscribe({
+    op.pipe(takeUntilDestroyed(this.destroyRef), finalize(() => this.submitting.set(false))).subscribe({
       next: () => {
         this.showModal.set(false);
         this.toast.success(editing ? 'Role updated' : 'Role created', name);

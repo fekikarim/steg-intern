@@ -1,12 +1,14 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { finalize } from 'rxjs';
+import { debounceTime, finalize, merge } from 'rxjs';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.component';
 import { ErrorStateComponent } from '../../shared/components/error-state/error-state.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
 import { IconComponent, type StegIconName } from '../../shared/components/icon/icon.component';
 import { ReportingService } from '../../core/services/reporting.service';
+import { RealtimeService } from '../../core/services/realtime.service';
+import { RealtimeEvent } from '../../core/models/realtime.model';
 import { ToastService } from '../../core/services/toast.service';
 import { InternshipReportResponse, PaymentReportResponse } from '../../core/models/report.model';
 
@@ -158,7 +160,9 @@ interface Card {
 })
 export class ReportViewerComponent {
   private readonly reporting = inject(ReportingService);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly toast = inject(ToastService);
+  private readonly realtime = inject(RealtimeService);
 
   protected readonly loading = signal(true);
   protected readonly failed = signal(false);
@@ -168,6 +172,19 @@ export class ReportViewerComponent {
 
   constructor() {
     this.load();
+
+    // Real-time sync — refresh when any major entity changes
+    merge(
+      this.realtime.of('USER'),
+      this.realtime.of('CANDIDATE'),
+      this.realtime.of('INTERNSHIP'),
+      this.realtime.of('APPLICATION'),
+      this.realtime.of('ASSIGNMENT'),
+      this.realtime.of('PAYMENT')
+    ).pipe(
+      takeUntilDestroyed(this.destroyRef),
+      debounceTime(500)
+    ).subscribe(() => this.load());
   }
 
   protected load(): void {
@@ -175,7 +192,7 @@ export class ReportViewerComponent {
     this.failed.set(false);
     const internships$ = this.reporting.getInternshipReport();
     const payments$ = this.reporting.getPaymentReport();
-    internships$.pipe(takeUntilDestroyed(), finalize(() => this.loading.set(false))).subscribe({
+    internships$.pipe(takeUntilDestroyed(this.destroyRef), finalize(() => this.loading.set(false))).subscribe({
       next: (data) => this.internships.set(data),
       error: (error: { message?: string }) => {
         this.failed.set(true);
@@ -183,7 +200,7 @@ export class ReportViewerComponent {
         this.toast.error('Reports load failed', this.errorMessage());
       }
     });
-    payments$.pipe(takeUntilDestroyed()).subscribe({
+    payments$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (data) => this.payments.set(data),
       error: (error: { message?: string }) => {
         this.failed.set(true);

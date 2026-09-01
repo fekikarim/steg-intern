@@ -25,6 +25,8 @@ import tn.steg.backend.users.repository.RoleRepository;
 import tn.steg.backend.users.repository.RefreshTokenRepository;
 import tn.steg.backend.users.repository.UserRepository;
 import tn.steg.backend.users.service.UserService;
+import tn.steg.backend.realtime.RealtimeEvent;
+import tn.steg.backend.realtime.RealtimeService;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -41,6 +43,7 @@ public class UserServiceImpl implements UserService {
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final RealtimeService realtimeService;
 
     @Override
     @Transactional(readOnly = true)
@@ -106,7 +109,9 @@ public class UserServiceImpl implements UserService {
                 .role(role)
                 .build();
 
-        return toResponse(userRepository.save(user));
+        UserResponse response = toResponse(userRepository.save(user));
+        realtimeService.broadcast(RealtimeEvent.of(RealtimeEvent.Entity.USER, RealtimeEvent.Action.CREATED, response.getId().toString()));
+        return response;
     }
 
     @Override
@@ -128,7 +133,9 @@ public class UserServiceImpl implements UserService {
             user.setEnabled(request.getEnabled());
         }
 
-        return toResponse(userRepository.save(user));
+        UserResponse response = toResponse(userRepository.save(user));
+        realtimeService.broadcast(RealtimeEvent.of(RealtimeEvent.Entity.USER, RealtimeEvent.Action.UPDATED, id.toString()));
+        return response;
     }
 
     @Override
@@ -139,6 +146,7 @@ public class UserServiceImpl implements UserService {
             throw new ResourceNotFoundException("User not found with id: " + id);
         }
         userRepository.deleteById(id);
+        realtimeService.broadcast(RealtimeEvent.of(RealtimeEvent.Entity.USER, RealtimeEvent.Action.DELETED, id.toString()));
     }
 
     @Override
@@ -151,6 +159,7 @@ public class UserServiceImpl implements UserService {
         user.setLockedUntil(null);
         user.setStatus(UserStatus.ACTIVE);
         userRepository.save(user);
+        realtimeService.broadcast(RealtimeEvent.of(RealtimeEvent.Entity.USER, RealtimeEvent.Action.STATUS_CHANGED, id.toString(), "User unlocked"));
     }
 
     @Override
@@ -163,6 +172,7 @@ public class UserServiceImpl implements UserService {
         user.setLockedUntil(null);
         userRepository.save(user);
         refreshTokenRepository.revokeAllActiveForUser(id);
+        realtimeService.broadcast(RealtimeEvent.of(RealtimeEvent.Entity.USER, RealtimeEvent.Action.STATUS_CHANGED, id.toString(), "User locked"));
     }
 
     @Override
@@ -176,6 +186,7 @@ public class UserServiceImpl implements UserService {
             user.setStatus(UserStatus.ACTIVE);
         }
         userRepository.save(user);
+        realtimeService.broadcast(RealtimeEvent.of(RealtimeEvent.Entity.USER, RealtimeEvent.Action.STATUS_CHANGED, id.toString(), "User enabled"));
     }
 
     @Override
@@ -187,6 +198,7 @@ public class UserServiceImpl implements UserService {
         user.setEnabled(false);
         user.setStatus(UserStatus.INACTIVE);
         userRepository.save(user);
+        realtimeService.broadcast(RealtimeEvent.of(RealtimeEvent.Entity.USER, RealtimeEvent.Action.STATUS_CHANGED, id.toString(), "User disabled"));
     }
 
     private UserProfileResponse toProfileResponse(User user) {

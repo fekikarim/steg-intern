@@ -32,7 +32,9 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
-        return path.endsWith("/api-docs") || path.contains("/swagger-ui");
+        return path.endsWith("/api-docs")
+                || path.contains("/swagger-ui")
+                || path.contains("/realtime/events");
     }
 
     @Override

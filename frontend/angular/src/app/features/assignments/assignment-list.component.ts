@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { debounceTime, finalize } from 'rxjs';
@@ -14,6 +14,8 @@ import { AssignmentsService } from '../../core/services/assignments.service';
 import { InternshipsService } from '../../core/services/internships.service';
 import { DepartmentsService } from '../../core/services/departments.service';
 import { SupervisorsService } from '../../core/services/supervisors.service';
+import { RealtimeService } from '../../core/services/realtime.service';
+import { RealtimeEvent } from '../../core/models/realtime.model';
 import { ToastService } from '../../core/services/toast.service';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { AssignmentResponse, AssignmentStatus, CreateAssignmentRequest } from '../../core/models/internship.model';
@@ -95,9 +97,10 @@ type AssignmentAction = 'end' | 'reassign' | 'cancel' | 'delete';
       }
     }
 
-    <steg-modal [open]="showModal()" title="Create assignment" (dismissed)="closeModal()">
+    <steg-modal [open]="showModal()" title="Create assignment" [subtitle]="'Assign a supervisor to an internship'" (dismissed)="closeModal()">
       <form [formGroup]="form" (ngSubmit)="save()" novalidate>
-        <div class="form-grid">
+        <div class="form-section">
+          <p class="form-section-title">Assignment details</p>
           <steg-field label="Internship" [required]="true" [invalid]="fieldInvalid('internshipId')" [error]="fieldError('internshipId')">
             <steg-select
               formControlName="internshipId"
@@ -171,11 +174,6 @@ type AssignmentAction = 'end' | 'reassign' | 'cancel' | 'delete';
       .panel {
         padding: 1.25rem;
       }
-      .form-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 1rem;
-      }
       .native-input {
         width: 100%;
         padding: 0.55rem 0.75rem;
@@ -186,9 +184,6 @@ type AssignmentAction = 'end' | 'reassign' | 'cancel' | 'delete';
         font-size: 0.875rem;
       }
       @media (max-width: 640px) {
-        .form-grid {
-          grid-template-columns: 1fr;
-        }
         .filters {
           flex-direction: column;
         }
@@ -208,12 +203,14 @@ type AssignmentAction = 'end' | 'reassign' | 'cancel' | 'delete';
 })
 export class AssignmentListComponent {
   private readonly fb = inject(FormBuilder);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly assignmentsSvc = inject(AssignmentsService);
   private readonly internships = inject(InternshipsService);
   private readonly departments = inject(DepartmentsService);
   private readonly supervisors = inject(SupervisorsService);
   private readonly toast = inject(ToastService);
   private readonly confirm = inject(ConfirmService);
+  private readonly realtime = inject(RealtimeService);
 
   protected readonly loading = signal(true);
   protected readonly failed = signal(false);
@@ -282,15 +279,21 @@ export class AssignmentListComponent {
   constructor() {
     this.loadLookups();
     this.filterForm.valueChanges
-      .pipe(takeUntilDestroyed(), debounceTime(300))
+      .pipe(takeUntilDestroyed(this.destroyRef), debounceTime(300))
       .subscribe(() => this.load());
     this.load();
+
+    // Real-time sync
+    this.realtime.of('ASSIGNMENT').pipe(
+      takeUntilDestroyed(this.destroyRef),
+      debounceTime(300)
+    ).subscribe(() => this.load());
   }
 
   private loadLookups(): void {
     this.internships
       .getAll({ page: 0, size: 100 })
-      .pipe(takeUntilDestroyed())
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (data) =>
           this.internshipsList.set(
@@ -300,14 +303,14 @@ export class AssignmentListComponent {
       });
     this.departments
       .getAll()
-      .pipe(takeUntilDestroyed())
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (depts) => this.departmentList.set(flattenDepartments(depts)),
         error: () => this.departmentList.set([])
       });
     this.supervisors
       .getAll({ page: 0, size: 100 })
-      .pipe(takeUntilDestroyed())
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (data) =>
           this.supervisorList.set(
@@ -323,7 +326,7 @@ export class AssignmentListComponent {
     const v = this.filterForm.getRawValue();
     this.assignmentsSvc
       .getAll(v.status)
-      .pipe(takeUntilDestroyed(), finalize(() => this.loading.set(false)))
+      .pipe(takeUntilDestroyed(this.destroyRef), finalize(() => this.loading.set(false)))
       .subscribe({
         next: (data) => this.assignments.set(data),
         error: (error: { message?: string }) => {
@@ -354,7 +357,7 @@ export class AssignmentListComponent {
         if (!ok) {
           return;
         }
-        await this.assignmentsSvc.updateStatus(a.id, 'ENDED').pipe(takeUntilDestroyed()).toPromise();
+        await this.assignmentsSvc.updateStatus(a.id, 'ENDED').pipe(takeUntilDestroyed(this.destroyRef)).toPromise();
         this.toast.success('Assignment ended', a.internshipReference);
         this.load();
         return;
@@ -368,7 +371,7 @@ export class AssignmentListComponent {
         if (!ok) {
           return;
         }
-        await this.assignmentsSvc.updateStatus(a.id, 'REASSIGNED').pipe(takeUntilDestroyed()).toPromise();
+        await this.assignmentsSvc.updateStatus(a.id, 'REASSIGNED').pipe(takeUntilDestroyed(this.destroyRef)).toPromise();
         this.toast.success('Assignment reassigned', a.internshipReference);
         this.load();
         return;
@@ -383,7 +386,7 @@ export class AssignmentListComponent {
         if (!ok) {
           return;
         }
-        await this.assignmentsSvc.updateStatus(a.id, 'CANCELLED').pipe(takeUntilDestroyed()).toPromise();
+        await this.assignmentsSvc.updateStatus(a.id, 'CANCELLED').pipe(takeUntilDestroyed(this.destroyRef)).toPromise();
         this.toast.success('Assignment cancelled', a.internshipReference);
         this.load();
         return;
@@ -398,7 +401,7 @@ export class AssignmentListComponent {
         if (!ok) {
           return;
         }
-        await this.assignmentsSvc.delete(a.id).pipe(takeUntilDestroyed()).toPromise();
+        await this.assignmentsSvc.delete(a.id).pipe(takeUntilDestroyed(this.destroyRef)).toPromise();
         this.toast.success('Assignment deleted', a.internshipReference);
         this.load();
       }
@@ -427,7 +430,7 @@ export class AssignmentListComponent {
     };
     this.assignmentsSvc
       .create(request)
-      .pipe(takeUntilDestroyed(), finalize(() => this.submitting.set(false)))
+      .pipe(takeUntilDestroyed(this.destroyRef), finalize(() => this.submitting.set(false)))
       .subscribe({
         next: () => {
           this.showModal.set(false);

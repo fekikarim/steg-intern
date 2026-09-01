@@ -69,9 +69,9 @@ app:
     show-docs: ${SHOW_DOCS:false}
   rate-limit:
     enabled: ${RATE_LIMIT_ENABLED:true}
-    default-per-minute: 100
-    auth-per-minute: 10
-    sensitive-per-minute: 5
+    default-per-minute: 200
+    auth-per-minute: 30
+    sensitive-per-minute: 60
 
 springdoc:
   api-docs:

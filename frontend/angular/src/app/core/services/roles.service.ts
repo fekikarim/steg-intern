@@ -25,4 +25,8 @@ export class RolesService {
   update(id: string, request: UpdateRoleRequest): Observable<RoleResponse> {
     return this.http.put<RoleResponse>(`${this.config.apiBaseUrl}/roles/${id}`, request);
   }
+
+  delete(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.config.apiBaseUrl}/roles/${id}`);
+  }
 }

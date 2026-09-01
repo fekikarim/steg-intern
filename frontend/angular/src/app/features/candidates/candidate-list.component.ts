@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { debounceTime, finalize } from 'rxjs';
@@ -12,6 +12,8 @@ import { ButtonComponent } from '../../shared/components/button/button.component
 import { ErrorStateComponent } from '../../shared/components/error-state/error-state.component';
 import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
 import { CandidatesService } from '../../core/services/candidates.service';
+import { RealtimeService } from '../../core/services/realtime.service';
+import { RealtimeEvent } from '../../core/models/realtime.model';
 import { ToastService } from '../../core/services/toast.service';
 import { Page, Pageable } from '../../core/models/api.model';
 import { CreateCandidateRequest } from '../../core/models/admin.model';
@@ -86,9 +88,10 @@ import { CandidateResponse, UpdateCandidateRequest } from '../../core/models/int
       }
     }
 
-    <steg-modal [open]="showModal()" [title]="editing() ? 'Edit candidate' : 'Register candidate'" (dismissed)="closeModal()">
+    <steg-modal [open]="showModal()" [title]="editing() ? 'Edit candidate' : 'Register candidate'" [subtitle]="editing() ? 'Update candidate information' : 'Register a new candidate profile'" (dismissed)="closeModal()">
       <form [formGroup]="form" (ngSubmit)="save()" novalidate>
-        <div class="form-grid">
+        <div class="form-section">
+          <p class="form-section-title">Personal information</p>
           <steg-field label="First name" [required]="true" [invalid]="fieldInvalid('firstName')" [error]="fieldError('firstName')">
             <steg-input formControlName="firstName" type="text" id="candidate-firstName" name="firstName" placeholder="First name" [invalid]="fieldInvalid('firstName')" />
           </steg-field>
@@ -139,15 +142,7 @@ import { CandidateResponse, UpdateCandidateRequest } from '../../core/models/int
       .panel {
         padding: 1.25rem;
       }
-      .form-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 1rem;
-      }
       @media (max-width: 640px) {
-        .form-grid {
-          grid-template-columns: 1fr;
-        }
         .search-input {
           width: 100%;
         }
@@ -160,8 +155,10 @@ import { CandidateResponse, UpdateCandidateRequest } from '../../core/models/int
 })
 export class CandidateListComponent {
   private readonly fb = inject(FormBuilder);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly candidates = inject(CandidatesService);
   private readonly toast = inject(ToastService);
+  private readonly realtime = inject(RealtimeService);
 
   protected readonly loading = signal(true);
   protected readonly failed = signal(false);
@@ -203,12 +200,18 @@ export class CandidateListComponent {
 
   constructor() {
     this.filterForm.valueChanges
-      .pipe(takeUntilDestroyed(), debounceTime(300))
+      .pipe(takeUntilDestroyed(this.destroyRef), debounceTime(300))
       .subscribe(() => {
         this.pageable.page = 0;
         this.load();
       });
     this.load();
+
+    // Real-time sync
+    this.realtime.of('CANDIDATE').pipe(
+      takeUntilDestroyed(this.destroyRef),
+      debounceTime(300)
+    ).subscribe(() => this.load());
   }
 
   protected load(): void {
@@ -219,7 +222,7 @@ export class CandidateListComponent {
     this.pageable.sort = s ? `${s.key},${s.direction}` : undefined;
     this.candidates
       .getAll(this.pageable, { search: v.search || undefined })
-      .pipe(takeUntilDestroyed(), finalize(() => this.loading.set(false)))
+      .pipe(takeUntilDestroyed(this.destroyRef), finalize(() => this.loading.set(false)))
       .subscribe({
         next: (data) => this.page.set(data),
         error: (error: { message?: string }) => {
@@ -314,7 +317,7 @@ export class CandidateListComponent {
             address: v.address || undefined
           } satisfies CreateCandidateRequest
         );
-    op.pipe(takeUntilDestroyed(), finalize(() => this.submitting.set(false))).subscribe({
+    op.pipe(takeUntilDestroyed(this.destroyRef), finalize(() => this.submitting.set(false))).subscribe({
       next: () => {
         this.showModal.set(false);
         this.toast.success(editing ? 'Candidate updated' : 'Candidate registered', `${v.firstName} ${v.lastName}`);

@@ -20,6 +20,8 @@ import tn.steg.backend.candidates.entity.Candidate;
 import tn.steg.backend.candidates.repository.CandidateRepository;
 import tn.steg.backend.exception.BusinessException;
 import tn.steg.backend.exception.ResourceNotFoundException;
+import tn.steg.backend.realtime.RealtimeEvent;
+import tn.steg.backend.realtime.RealtimeService;
 import tn.steg.backend.security.CurrentUserService;
 import tn.steg.backend.users.entity.User;
 
@@ -37,6 +39,7 @@ public class ApplicationServiceImpl implements ApplicationService {
     private final InternshipApplicationRepository applicationRepository;
     private final CandidateRepository candidateRepository;
     private final CurrentUserService currentUserService;
+    private final RealtimeService realtimeService;
 
     /**
      * Explicit application state machine. Each key lists the only legal target
@@ -93,7 +96,9 @@ public class ApplicationServiceImpl implements ApplicationService {
                 .candidate(candidate)
                 .build();
 
-        return toResponse(applicationRepository.save(application));
+        InternshipApplication saved = applicationRepository.save(application);
+        realtimeService.broadcast(RealtimeEvent.of(RealtimeEvent.Entity.APPLICATION, RealtimeEvent.Action.CREATED, saved.getId().toString()));
+        return toResponse(saved);
     }
 
     /**
@@ -190,7 +195,9 @@ public class ApplicationServiceImpl implements ApplicationService {
         checkTransition(app, ApplicationStatus.SUBMITTED); // DRAFT -> SUBMITTED
         app.setStatus(ApplicationStatus.SUBMITTED);
         app.setSubmissionDate(LocalDate.now());
-        return toResponse(applicationRepository.save(app));
+        InternshipApplication saved = applicationRepository.save(app);
+        realtimeService.broadcast(RealtimeEvent.of(RealtimeEvent.Entity.APPLICATION, RealtimeEvent.Action.STATUS_CHANGED, saved.getId().toString()));
+        return toResponse(saved);
     }
 
     @Override
@@ -203,7 +210,9 @@ public class ApplicationServiceImpl implements ApplicationService {
         if (app.getSubmissionDate() == null) {
             app.setSubmissionDate(LocalDate.now());
         }
-        return toResponse(applicationRepository.save(app));
+        InternshipApplication saved = applicationRepository.save(app);
+        realtimeService.broadcast(RealtimeEvent.of(RealtimeEvent.Entity.APPLICATION, RealtimeEvent.Action.STATUS_CHANGED, saved.getId().toString()));
+        return toResponse(saved);
     }
 
     @Override
@@ -213,7 +222,9 @@ public class ApplicationServiceImpl implements ApplicationService {
         InternshipApplication app = findById(id);
         checkTransition(app, ApplicationStatus.REJECTED); // DRAFT|SUBMITTED|UNDER_REVIEW -> REJECTED
         app.setStatus(ApplicationStatus.REJECTED);
-        return toResponse(applicationRepository.save(app));
+        InternshipApplication saved = applicationRepository.save(app);
+        realtimeService.broadcast(RealtimeEvent.of(RealtimeEvent.Entity.APPLICATION, RealtimeEvent.Action.STATUS_CHANGED, saved.getId().toString()));
+        return toResponse(saved);
     }
 
     @Override
@@ -223,7 +234,9 @@ public class ApplicationServiceImpl implements ApplicationService {
         InternshipApplication app = findById(id);
         checkTransition(app, status);
         app.setStatus(status);
-        return toResponse(applicationRepository.save(app));
+        InternshipApplication saved = applicationRepository.save(app);
+        realtimeService.broadcast(RealtimeEvent.of(RealtimeEvent.Entity.APPLICATION, RealtimeEvent.Action.STATUS_CHANGED, saved.getId().toString()));
+        return toResponse(saved);
     }
 
     private InternshipApplication findById(UUID id) {

@@ -13,6 +13,8 @@ import tn.steg.backend.departments.repository.EmployeeRepository;
 import tn.steg.backend.departments.service.DepartmentService;
 import tn.steg.backend.exception.BusinessException;
 import tn.steg.backend.exception.ResourceNotFoundException;
+import tn.steg.backend.realtime.RealtimeEvent;
+import tn.steg.backend.realtime.RealtimeService;
 import tn.steg.backend.users.entity.User;
 import tn.steg.backend.users.repository.UserRepository;
 
@@ -27,6 +29,7 @@ public class DepartmentServiceImpl implements DepartmentService {
     private final DepartmentRepository departmentRepository;
     private final EmployeeRepository employeeRepository;
     private final UserRepository userRepository;
+    private final RealtimeService realtimeService;
 
     @Override
     @Transactional(readOnly = true)
@@ -63,7 +66,9 @@ public class DepartmentServiceImpl implements DepartmentService {
             dept.setParent(parent);
         }
 
-        return toResponse(departmentRepository.save(dept));
+        Department saved = departmentRepository.save(dept);
+        realtimeService.broadcast(RealtimeEvent.of(RealtimeEvent.Entity.DEPARTMENT, RealtimeEvent.Action.CREATED, saved.getId().toString()));
+        return toResponse(saved);
     }
 
     @Override
@@ -84,7 +89,9 @@ public class DepartmentServiceImpl implements DepartmentService {
             dept.setParent(null);
         }
 
-        return toResponse(departmentRepository.save(dept));
+        Department updated = departmentRepository.save(dept);
+        realtimeService.broadcast(RealtimeEvent.of(RealtimeEvent.Entity.DEPARTMENT, RealtimeEvent.Action.UPDATED, updated.getId().toString()));
+        return toResponse(updated);
     }
 
     @Override
@@ -94,6 +101,7 @@ public class DepartmentServiceImpl implements DepartmentService {
             throw new ResourceNotFoundException("Department not found");
         }
         departmentRepository.deleteById(id);
+        realtimeService.broadcast(RealtimeEvent.of(RealtimeEvent.Entity.DEPARTMENT, RealtimeEvent.Action.DELETED, id.toString()));
     }
 
     @Override
@@ -137,7 +145,9 @@ public class DepartmentServiceImpl implements DepartmentService {
         employee.setHireDate(request.getHireDate() != null ? request.getHireDate() : java.time.LocalDate.now());
         employee.setDepartment(dept);
 
-        return toEmployeeResponse(employeeRepository.save(employee));
+        Employee saved = employeeRepository.save(employee);
+        realtimeService.broadcast(RealtimeEvent.of(RealtimeEvent.Entity.DEPARTMENT, RealtimeEvent.Action.CREATED, saved.getId().toString()));
+        return toEmployeeResponse(saved);
     }
 
     private DepartmentResponse toResponse(Department dept) {

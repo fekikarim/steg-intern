@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { debounceTime, finalize } from 'rxjs';
@@ -13,6 +13,8 @@ import { ErrorStateComponent } from '../../shared/components/error-state/error-s
 import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
 import { PaymentsService } from '../../core/services/payments.service';
 import { InternshipsService } from '../../core/services/internships.service';
+import { RealtimeService } from '../../core/services/realtime.service';
+import { RealtimeEvent } from '../../core/models/realtime.model';
 import { ToastService } from '../../core/services/toast.service';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { Page, Pageable } from '../../core/models/api.model';
@@ -58,6 +60,19 @@ const CURRENCY_OPTIONS: SelectOption<CurrencyCode>[] = [
     </steg-page-header>
 
     <div class="filters card" [formGroup]="filterForm">
+      <div class="toolbar">
+        <div class="toolbar-search">
+          <input
+            class="search-input"
+            type="search"
+            placeholder="Search by reference, status, or approver"
+            [value]="searchQuery()"
+            (input)="onSearchInput($event)"
+            aria-label="Search payments"
+          />
+        </div>
+        <span class="toolbar-count">{{ filteredPayments().length }} payment(s)</span>
+      </div>
       <steg-field label="Status">
         <steg-select id="status-filter" formControlName="status" [options]="statusOptions" />
       </steg-field>
@@ -74,7 +89,7 @@ const CURRENCY_OPTIONS: SelectOption<CurrencyCode>[] = [
     } @else {
       <steg-table
         [columns]="columns"
-        [rows]="page()?.content ?? []"
+        [rows]="filteredPayments()"
         [loading]="loading()"
         [rowSlot]="actionsRow"
         [trackBy]="trackById"
@@ -87,7 +102,7 @@ const CURRENCY_OPTIONS: SelectOption<CurrencyCode>[] = [
 
       <steg-pagination [page]="page()" (pageChange)="onPageChange($event)" />
 
-      @if (!loading() && (page()?.content?.length ?? 0) === 0) {
+      @if (!loading() && filteredPayments().length === 0) {
         <div class="card panel">
           <steg-empty-state
             icon="payments"
@@ -98,9 +113,10 @@ const CURRENCY_OPTIONS: SelectOption<CurrencyCode>[] = [
       }
     }
 
-    <steg-modal [open]="showModal()" title="Create payment" (dismissed)="closeModal()">
+    <steg-modal [open]="showModal()" title="Create payment" [subtitle]="'Record a new payment'" (dismissed)="closeModal()">
       <form [formGroup]="form" (ngSubmit)="save()" novalidate>
-        <div class="form-grid">
+        <div class="form-section">
+          <p class="form-section-title">Payment details</p>
           <steg-field label="Internship" [required]="true" [invalid]="fieldInvalid('internshipId')" [error]="fieldError('internshipId')">
             <steg-select
               formControlName="internshipId"
@@ -156,11 +172,6 @@ const CURRENCY_OPTIONS: SelectOption<CurrencyCode>[] = [
       .panel {
         padding: 1.25rem;
       }
-      .form-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 1rem;
-      }
       .native-input {
         width: 100%;
         padding: 0.55rem 0.75rem;
@@ -171,9 +182,6 @@ const CURRENCY_OPTIONS: SelectOption<CurrencyCode>[] = [
         font-size: 0.875rem;
       }
       @media (max-width: 640px) {
-        .form-grid {
-          grid-template-columns: 1fr;
-        }
         .filters {
           flex-direction: column;
         }
@@ -189,10 +197,12 @@ const CURRENCY_OPTIONS: SelectOption<CurrencyCode>[] = [
 })
 export class PaymentListComponent {
   private readonly fb = inject(FormBuilder);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly payments = inject(PaymentsService);
   private readonly internships = inject(InternshipsService);
   private readonly toast = inject(ToastService);
   private readonly confirm = inject(ConfirmService);
+  private readonly realtime = inject(RealtimeService);
 
   protected readonly loading = signal(true);
   protected readonly failed = signal(false);
@@ -201,8 +211,23 @@ export class PaymentListComponent {
   protected readonly internshipsList = signal<Array<{ id: string; label: string }>>([]);
   protected readonly showModal = signal(false);
   protected readonly submitting = signal(false);
+  protected readonly searchQuery = signal('');
 
   private readonly pageable: Pageable = { page: 0, size: 10 };
+
+  protected readonly filteredPayments = computed<PaymentResponse[]>(() => {
+    const q = this.searchQuery().trim().toLowerCase();
+    const rows = this.page()?.content ?? [];
+    if (!q) {
+      return rows;
+    }
+    return rows.filter(
+      (r) =>
+        r.reference.toLowerCase().includes(q) ||
+        r.status.toLowerCase().includes(q) ||
+        (r.approvedByName ?? '').toLowerCase().includes(q)
+    );
+  });
 
   protected readonly currencyOptions = CURRENCY_OPTIONS;
 
@@ -242,18 +267,24 @@ export class PaymentListComponent {
   constructor() {
     this.loadInternships();
     this.filterForm.valueChanges
-      .pipe(takeUntilDestroyed(), debounceTime(300))
+      .pipe(takeUntilDestroyed(this.destroyRef), debounceTime(300))
       .subscribe(() => {
         this.pageable.page = 0;
         this.load();
       });
     this.load();
+
+    // Real-time sync
+    this.realtime.of('PAYMENT').pipe(
+      takeUntilDestroyed(this.destroyRef),
+      debounceTime(300)
+    ).subscribe(() => this.load());
   }
 
   private loadInternships(): void {
     this.internships
       .getAll({ page: 0, size: 100 })
-      .pipe(takeUntilDestroyed())
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (data) =>
           this.internshipsList.set(
@@ -268,8 +299,8 @@ export class PaymentListComponent {
     this.failed.set(false);
     const status = this.filterForm.getRawValue().status;
     this.payments
-      .getAll(this.pageable.page, this.pageable.size, status)
-      .pipe(takeUntilDestroyed(), finalize(() => this.loading.set(false)))
+      .getAll(this.pageable, status)
+      .pipe(takeUntilDestroyed(this.destroyRef), finalize(() => this.loading.set(false)))
       .subscribe({
         next: (data) => this.page.set(data),
         error: (error: { message?: string }) => {
@@ -278,6 +309,10 @@ export class PaymentListComponent {
           this.toast.error('Payments load failed', this.errorMessage());
         }
       });
+  }
+
+  protected onSearchInput(event: Event): void {
+    this.searchQuery.set((event.target as HTMLInputElement).value);
   }
 
   protected onPageChange(page: number): void {
@@ -305,7 +340,7 @@ export class PaymentListComponent {
         if (!ok) {
           return;
         }
-        await this.payments.validate(p.id).pipe(takeUntilDestroyed()).toPromise();
+        await this.payments.validate(p.id).pipe(takeUntilDestroyed(this.destroyRef)).toPromise();
         this.toast.success('Payment validated', p.reference);
         this.load();
         return;
@@ -319,7 +354,7 @@ export class PaymentListComponent {
         if (!ok) {
           return;
         }
-        await this.payments.markAsPaid(p.id).pipe(takeUntilDestroyed()).toPromise();
+        await this.payments.markAsPaid(p.id).pipe(takeUntilDestroyed(this.destroyRef)).toPromise();
         this.toast.success('Payment paid', p.reference);
         this.load();
       }
@@ -342,7 +377,7 @@ export class PaymentListComponent {
     };
     this.payments
       .create(request)
-      .pipe(takeUntilDestroyed(), finalize(() => this.submitting.set(false)))
+      .pipe(takeUntilDestroyed(this.destroyRef), finalize(() => this.submitting.set(false)))
       .subscribe({
         next: () => {
           this.showModal.set(false);

@@ -12,4 +12,5 @@ public interface RoleService {
     RoleResponse getRoleById(UUID id);
     RoleResponse createRole(CreateRoleRequest request);
     RoleResponse updateRole(UUID id, UpdateRoleRequest request);
+    void deleteRole(UUID id);
 }

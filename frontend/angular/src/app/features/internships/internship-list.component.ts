@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { debounceTime, finalize } from 'rxjs';
@@ -14,6 +14,8 @@ import { ErrorStateComponent } from '../../shared/components/error-state/error-s
 import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
 import { InternshipsService } from '../../core/services/internships.service';
 import { CandidatesService } from '../../core/services/candidates.service';
+import { RealtimeService } from '../../core/services/realtime.service';
+import { RealtimeEvent } from '../../core/models/realtime.model';
 import { ToastService } from '../../core/services/toast.service';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { Page, Pageable } from '../../core/models/api.model';
@@ -99,9 +101,10 @@ type InternshipAction = 'activate' | 'complete' | 'cancel' | 'archive';
       }
     }
 
-    <steg-modal [open]="showModal()" title="Create internship" (dismissed)="closeModal()">
+    <steg-modal [open]="showModal()" title="Create internship" [subtitle]="'Create a new internship position'" (dismissed)="closeModal()">
       <form [formGroup]="form" (ngSubmit)="save()" novalidate>
-        <div class="form-grid">
+        <div class="form-section">
+          <p class="form-section-title">Position details</p>
           <steg-field label="Candidate" [required]="true" [invalid]="fieldInvalid('candidateId')" [error]="fieldError('candidateId')">
             <steg-select
               formControlName="candidateId"
@@ -149,11 +152,6 @@ type InternshipAction = 'activate' | 'complete' | 'cancel' | 'archive';
       .panel {
         padding: 1.25rem;
       }
-      .form-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 1rem;
-      }
       .native-input {
         width: 100%;
         padding: 0.55rem 0.75rem;
@@ -167,9 +165,6 @@ type InternshipAction = 'activate' | 'complete' | 'cancel' | 'archive';
         border-color: var(--color-danger, #dc2626);
       }
       @media (max-width: 640px) {
-        .form-grid {
-          grid-template-columns: 1fr;
-        }
         .search-input {
           width: 100%;
         }
@@ -188,10 +183,12 @@ type InternshipAction = 'activate' | 'complete' | 'cancel' | 'archive';
 })
 export class InternshipListComponent {
   private readonly fb = inject(FormBuilder);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly internships = inject(InternshipsService);
   private readonly candidates = inject(CandidatesService);
   private readonly toast = inject(ToastService);
   private readonly confirm = inject(ConfirmService);
+  private readonly realtime = inject(RealtimeService);
 
   protected readonly loading = signal(true);
   protected readonly failed = signal(false);
@@ -241,18 +238,24 @@ export class InternshipListComponent {
   constructor() {
     this.loadCandidates();
     this.filterForm.valueChanges
-      .pipe(takeUntilDestroyed(), debounceTime(300))
+      .pipe(takeUntilDestroyed(this.destroyRef), debounceTime(300))
       .subscribe(() => {
         this.pageable.page = 0;
         this.load();
       });
     this.load();
+
+    // Real-time sync
+    this.realtime.of('INTERNSHIP').pipe(
+      takeUntilDestroyed(this.destroyRef),
+      debounceTime(300)
+    ).subscribe(() => this.load());
   }
 
   private loadCandidates(): void {
     this.candidates
       .getAll({ page: 0, size: 100 })
-      .pipe(takeUntilDestroyed())
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (data) =>
           this.candidatesList.set(
@@ -270,7 +273,7 @@ export class InternshipListComponent {
     this.pageable.sort = s ? `${s.key},${s.direction}` : undefined;
     this.internships
       .getAll(this.pageable, { search: v.search || undefined, status: v.status })
-      .pipe(takeUntilDestroyed(), finalize(() => this.loading.set(false)))
+      .pipe(takeUntilDestroyed(this.destroyRef), finalize(() => this.loading.set(false)))
       .subscribe({
         next: (data) => this.page.set(data),
         error: (error: { message?: string }) => {
@@ -312,7 +315,7 @@ export class InternshipListComponent {
         if (!ok) {
           return;
         }
-        await this.internships.updateStatus(it.id, 'ACTIVE').pipe(takeUntilDestroyed()).toPromise();
+        await this.internships.updateStatus(it.id, 'ACTIVE').pipe(takeUntilDestroyed(this.destroyRef)).toPromise();
         this.toast.success('Internship started', it.reference);
         this.load();
         return;
@@ -326,7 +329,7 @@ export class InternshipListComponent {
         if (!ok) {
           return;
         }
-        await this.internships.updateStatus(it.id, 'COMPLETED').pipe(takeUntilDestroyed()).toPromise();
+        await this.internships.updateStatus(it.id, 'COMPLETED').pipe(takeUntilDestroyed(this.destroyRef)).toPromise();
         this.toast.success('Internship completed', it.reference);
         this.load();
         return;
@@ -340,7 +343,7 @@ export class InternshipListComponent {
         if (!ok) {
           return;
         }
-        await this.internships.updateStatus(it.id, 'ARCHIVED').pipe(takeUntilDestroyed()).toPromise();
+        await this.internships.updateStatus(it.id, 'ARCHIVED').pipe(takeUntilDestroyed(this.destroyRef)).toPromise();
         this.toast.success('Internship archived', it.reference);
         this.load();
         return;
@@ -355,7 +358,7 @@ export class InternshipListComponent {
         if (!ok) {
           return;
         }
-        await this.internships.updateStatus(it.id, 'CANCELLED').pipe(takeUntilDestroyed()).toPromise();
+        await this.internships.updateStatus(it.id, 'CANCELLED').pipe(takeUntilDestroyed(this.destroyRef)).toPromise();
         this.toast.success('Internship cancelled', it.reference);
         this.load();
       }
@@ -378,7 +381,7 @@ export class InternshipListComponent {
     };
     this.internships
       .create(request)
-      .pipe(takeUntilDestroyed(), finalize(() => this.submitting.set(false)))
+      .pipe(takeUntilDestroyed(this.destroyRef), finalize(() => this.submitting.set(false)))
       .subscribe({
         next: () => {
           this.showModal.set(false);

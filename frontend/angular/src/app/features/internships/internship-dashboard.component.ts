@@ -1,6 +1,6 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { finalize } from 'rxjs';
+import { debounceTime, finalize } from 'rxjs';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.component';
 import { ErrorStateComponent } from '../../shared/components/error-state/error-state.component';
@@ -8,6 +8,8 @@ import { EmptyStateComponent } from '../../shared/components/empty-state/empty-s
 import { ButtonComponent } from '../../shared/components/button/button.component';
 import { IconComponent, type StegIconName } from '../../shared/components/icon/icon.component';
 import { InternshipsService } from '../../core/services/internships.service';
+import { RealtimeService } from '../../core/services/realtime.service';
+import { RealtimeEvent } from '../../core/models/realtime.model';
 import { ToastService } from '../../core/services/toast.service';
 import { InternshipStats } from '../../core/models/internship.model';
 
@@ -195,7 +197,9 @@ interface StatCard {
 })
 export class InternshipDashboardComponent {
   private readonly internships = inject(InternshipsService);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly toast = inject(ToastService);
+  private readonly realtime = inject(RealtimeService);
 
   protected readonly loading = signal(true);
   protected readonly failed = signal(false);
@@ -217,6 +221,12 @@ export class InternshipDashboardComponent {
 
   constructor() {
     this.load();
+
+    // Real-time sync
+    this.realtime.of('INTERNSHIP').pipe(
+      takeUntilDestroyed(this.destroyRef),
+      debounceTime(300)
+    ).subscribe(() => this.load());
   }
 
   protected load(): void {
@@ -225,7 +235,7 @@ export class InternshipDashboardComponent {
     this.internships
       .getStats()
       .pipe(
-        takeUntilDestroyed(),
+        takeUntilDestroyed(this.destroyRef),
         finalize(() => this.loading.set(false))
       )
       .subscribe({

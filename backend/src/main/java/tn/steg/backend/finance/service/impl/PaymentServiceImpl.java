@@ -9,6 +9,8 @@ import tn.steg.backend.departments.entity.Employee;
 import tn.steg.backend.departments.repository.EmployeeRepository;
 import tn.steg.backend.exception.BusinessException;
 import tn.steg.backend.exception.ResourceNotFoundException;
+import tn.steg.backend.realtime.RealtimeEvent;
+import tn.steg.backend.realtime.RealtimeService;
 import tn.steg.backend.finance.dto.CreatePaymentRequest;
 import tn.steg.backend.finance.dto.PaymentResponse;
 import tn.steg.backend.finance.entity.CurrencyCode;
@@ -30,6 +32,7 @@ public class PaymentServiceImpl implements PaymentService {
     private final PaymentRepository paymentRepository;
     private final InternshipRepository internshipRepository;
     private final EmployeeRepository employeeRepository;
+    private final RealtimeService realtimeService;
 
     @Override
     @Transactional(readOnly = true)
@@ -57,7 +60,9 @@ public class PaymentServiceImpl implements PaymentService {
                 .internship(internship)
                 .build();
 
-        return toResponse(paymentRepository.save(payment));
+        Payment saved = paymentRepository.save(payment);
+        realtimeService.broadcast(RealtimeEvent.of(RealtimeEvent.Entity.PAYMENT, RealtimeEvent.Action.CREATED, saved.getId().toString()));
+        return toResponse(saved);
     }
 
     @Override
@@ -75,7 +80,9 @@ public class PaymentServiceImpl implements PaymentService {
         payment.setStatus(PaymentStatus.VALIDATED);
         payment.setApprovedBy(approver);
         payment.setApprovedAt(LocalDateTime.now());
-        return toResponse(paymentRepository.save(payment));
+        Payment saved = paymentRepository.save(payment);
+        realtimeService.broadcast(RealtimeEvent.of(RealtimeEvent.Entity.PAYMENT, RealtimeEvent.Action.STATUS_CHANGED, saved.getId().toString()));
+        return toResponse(saved);
     }
 
     @Override
@@ -93,7 +100,9 @@ public class PaymentServiceImpl implements PaymentService {
         payment.setStatus(PaymentStatus.PAID);
         payment.setPaymentDate(LocalDate.now());
         payment.setApprovedBy(approver);
-        return toResponse(paymentRepository.save(payment));
+        Payment saved = paymentRepository.save(payment);
+        realtimeService.broadcast(RealtimeEvent.of(RealtimeEvent.Entity.PAYMENT, RealtimeEvent.Action.STATUS_CHANGED, saved.getId().toString()));
+        return toResponse(saved);
     }
 
     private PaymentResponse toResponse(Payment p) {

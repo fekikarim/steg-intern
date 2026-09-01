@@ -9,8 +9,11 @@ import tn.steg.backend.users.entity.Permission;
 import tn.steg.backend.users.entity.Role;
 import tn.steg.backend.users.repository.PermissionRepository;
 import tn.steg.backend.users.repository.RoleRepository;
+import tn.steg.backend.users.repository.UserRepository;
 import tn.steg.backend.roles.dto.CreateRoleRequest;
 import tn.steg.backend.roles.dto.RoleResponse;
+import tn.steg.backend.realtime.RealtimeEvent;
+import tn.steg.backend.realtime.RealtimeService;
 import tn.steg.backend.roles.dto.UpdateRoleRequest;
 import tn.steg.backend.roles.service.RoleService;
 
@@ -25,6 +28,8 @@ public class RoleServiceImpl implements RoleService {
 
     private final RoleRepository roleRepository;
     private final PermissionRepository permissionRepository;
+    private final UserRepository userRepository;
+    private final RealtimeService realtimeService;
 
     @Override
     @Transactional(readOnly = true)
@@ -58,7 +63,9 @@ public class RoleServiceImpl implements RoleService {
             role.setPermissions(new HashSet<>(permissionRepository.findAllById(request.getPermissionIds())));
         }
 
-        return toResponse(roleRepository.save(role));
+        Role saved = roleRepository.save(role);
+        realtimeService.broadcast(RealtimeEvent.of(RealtimeEvent.Entity.ROLE, RealtimeEvent.Action.CREATED, saved.getId().toString()));
+        return toResponse(saved);
     }
 
     @Override
@@ -81,7 +88,23 @@ public class RoleServiceImpl implements RoleService {
             role.setPermissions(new HashSet<>(permissionRepository.findAllById(request.getPermissionIds())));
         }
 
-        return toResponse(roleRepository.save(role));
+        Role updated = roleRepository.save(role);
+        realtimeService.broadcast(RealtimeEvent.of(RealtimeEvent.Entity.ROLE, RealtimeEvent.Action.UPDATED, updated.getId().toString()));
+        return toResponse(updated);
+    }
+
+    @Override
+    @Transactional
+    public void deleteRole(UUID id) {
+        Role role = roleRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Role not found with id: " + id));
+
+        if (userRepository.existsByRole_Id(id)) {
+            throw new BusinessException("Cannot delete role '" + role.getName() + "' — it is assigned to one or more users.");
+        }
+
+        roleRepository.delete(role);
+        realtimeService.broadcast(RealtimeEvent.of(RealtimeEvent.Entity.ROLE, RealtimeEvent.Action.DELETED, id.toString()));
     }
 
     private RoleResponse toResponse(Role role) {
