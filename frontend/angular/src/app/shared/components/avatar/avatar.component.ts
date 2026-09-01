@@ -16,13 +16,23 @@ function darken(hex: string, amt: number): string {
   return `rgb(${r}, ${g}, ${b})`;
 }
 
+const SIZES: Record<string, { w: string; h: string; fs: string }> = {
+  sm: { w: '2.25rem', h: '2.25rem', fs: '0.75rem' },
+  md: { w: '2.75rem', h: '2.75rem', fs: '0.875rem' },
+  lg: { w: '3.75rem', h: '3.75rem', fs: '1.125rem' }
+};
+
 @Component({
   selector: 'steg-avatar',
   standalone: true,
   host: {
-    '[class]': "`avatar avatar-${size()}`",
+    '[class]': '`avatar avatar-${size()}`',
+    '[style.width]': 'sizeMap().w',
+    '[style.height]': 'sizeMap().h',
+    '[style.font-size]': 'sizeMap().fs',
     '[style.background]': 'avatarBackground()',
-    '[title]': 'name()'
+    '[title]': 'name()',
+    role: 'img'
   },
   template: `<span class="avatar-inner" aria-hidden="true">{{ initials() }}</span>`,
   styles: [
@@ -35,35 +45,22 @@ function darken(hex: string, amt: number): string {
         font-weight: 600;
         color: #fff;
         flex-shrink: 0;
+        flex-grow: 0;
         user-select: none;
         position: relative;
-        border: 2px solid rgba(255, 255, 255, 0.9);
-        box-shadow:
-          0 1px 2px rgba(16, 24, 40, 0.12),
-          inset 0 1px 0 rgba(255, 255, 255, 0.25);
-        letter-spacing: 0.01em;
+        box-shadow: 0 2px 6px rgba(16, 24, 40, 0.18);
+        letter-spacing: 0.04em;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+        overflow: hidden;
+        aspect-ratio: 1;
       }
       .avatar-inner {
-        display: inline-flex;
+        display: flex;
         align-items: center;
         justify-content: center;
         width: 100%;
         height: 100%;
-      }
-      .avatar-sm {
-        width: 2rem;
-        height: 2rem;
-        font-size: 0.6875rem;
-      }
-      .avatar-md {
-        width: 2.5rem;
-        height: 2.5rem;
-        font-size: 0.8125rem;
-      }
-      .avatar-lg {
-        width: 3.25rem;
-        height: 3.25rem;
-        font-size: 1rem;
+        line-height: 1;
       }
     `
   ]
@@ -73,9 +70,11 @@ export class AvatarComponent {
   readonly size = input<'sm' | 'md' | 'lg'>('md');
   readonly background = input('#c8102e');
 
+  readonly sizeMap = computed(() => SIZES[this.size()] ?? SIZES['md']);
+
   readonly avatarBackground = computed(() => {
     const base = this.background() || '#c8102e';
-    return `linear-gradient(145deg, ${base} 0%, ${darken(base, 28)} 100%)`;
+    return `linear-gradient(145deg, ${base} 0%, ${darken(base, 32)} 100%)`;
   });
 
   readonly initials = computed(() => {
