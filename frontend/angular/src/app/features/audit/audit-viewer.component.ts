@@ -79,7 +79,7 @@ import { AuditResponse } from '../../core/models/admin.model';
 
       @if (!loading() && (page()?.content?.length ?? 0) === 0) {
         <div class="card panel">
-          <steg-empty-state icon="📜" title="No audit entries" message="No activity matches the current filters." />
+          <steg-empty-state icon="audit" title="No audit entries" message="No activity matches the current filters." />
         </div>
       }
     }

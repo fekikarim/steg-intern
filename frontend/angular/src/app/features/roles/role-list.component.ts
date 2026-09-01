@@ -43,7 +43,7 @@ interface PermissionGroup {
       subtitle="Define roles and their permissions"
       [crumbs]="[{ label: 'Roles' }]"
     >
-      <steg-button variant="primary" label="New role" icon="+" (click)="openCreate()" />
+      <steg-button variant="primary" label="New role" icon="plus" (click)="openCreate()" />
     </steg-page-header>
 
     @if (failed()) {
@@ -51,9 +51,23 @@ interface PermissionGroup {
         <steg-error-state title="Could not load roles" [message]="errorMessage()" (retry)="load()" />
       </div>
     } @else {
+      <div class="toolbar">
+        <div class="toolbar-search">
+          <input
+            class="search-input"
+            type="search"
+            placeholder="Search roles by name or description"
+            [value]="searchQuery()"
+            (input)="onSearchInput($event)"
+            aria-label="Search roles"
+          />
+        </div>
+        <span class="toolbar-count">{{ filteredRoles().length }} role(s)</span>
+      </div>
+
       <steg-table
         [columns]="columns"
-        [rows]="roleList()"
+        [rows]="filteredRoles()"
         [loading]="loading()"
         [rowSlot]="actionsRow"
         [trackBy]="trackById"
@@ -63,9 +77,9 @@ interface PermissionGroup {
         </ng-template>
       </steg-table>
 
-      @if (!loading() && roleList().length === 0) {
+      @if (!loading() && filteredRoles().length === 0) {
         <div class="card panel">
-          <steg-empty-state icon="🛡️" title="No roles yet" message="Create a role to get started." />
+          <steg-empty-state icon="roles" title="No roles yet" message="Create a role to get started." />
         </div>
       }
     }
@@ -198,6 +212,19 @@ export class RoleListComponent {
   protected readonly showModal = signal(false);
   protected readonly editing = signal<RoleResponse | null>(null);
   protected readonly submitting = signal(false);
+  protected readonly searchQuery = signal('');
+
+  protected readonly filteredRoles = computed<RoleResponse[]>(() => {
+    const q = this.searchQuery().trim().toLowerCase();
+    if (!q) {
+      return this.roleList();
+    }
+    return this.roleList().filter(
+      (r) =>
+        r.name.toLowerCase().includes(q) ||
+        (r.description ?? '').toLowerCase().includes(q)
+    );
+  });
 
   protected readonly columns: TableColumn<RoleResponse>[] = [
     { key: 'name', label: 'Name' },
@@ -212,6 +239,10 @@ export class RoleListComponent {
   });
 
   protected readonly trackById = (row: RoleResponse): string => row.id;
+
+  protected onSearchInput(event: Event): void {
+    this.searchQuery.set((event.target as HTMLInputElement).value);
+  }
 
   protected readonly grouped = computed<PermissionGroup[]>(() => {
     const groups = new Map<string, Permission[]>();

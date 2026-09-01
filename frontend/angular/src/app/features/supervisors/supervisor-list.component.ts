@@ -3,7 +3,7 @@ import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { debounceTime, finalize } from 'rxjs';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
-import { TableComponent, TableColumn } from '../../shared/components/table/table.component';
+import { TableComponent, TableColumn, TableSortState } from '../../shared/components/table/table.component';
 import { FieldComponent } from '../../shared/components/field/field.component';
 import { InputComponent } from '../../shared/components/input/input.component';
 import { SelectComponent, SelectOption } from '../../shared/components/select/select.component';
@@ -69,6 +69,8 @@ import { DepartmentResponse } from '../../core/models/admin.model';
         [columns]="columns"
         [rows]="page()?.content ?? []"
         [loading]="loading()"
+        [sort]="sort()"
+        (sortChange)="onSort($event)"
         [rowSlot]="actionsRow"
         [trackBy]="trackById"
       >
@@ -85,7 +87,7 @@ import { DepartmentResponse } from '../../core/models/admin.model';
       @if (!loading() && (page()?.content?.length ?? 0) === 0) {
         <div class="card panel">
           <steg-empty-state
-            icon="🧑‍💼"
+            icon="supervisors"
             title="No supervisors found"
             message="Try adjusting the search or filters."
           />
@@ -214,6 +216,7 @@ export class SupervisorListComponent {
   protected readonly failed = signal(false);
   protected readonly errorMessage = signal('Unable to load supervisors.');
   protected readonly page = signal<Page<SupervisorResponse> | null>(null);
+  protected readonly sort = signal<TableSortState | null>(null);
   protected readonly departmentOptions = signal<SelectOption[]>([]);
   protected readonly detailOpen = signal(false);
   protected readonly detailTitle = signal('Assigned internships');
@@ -228,10 +231,10 @@ export class SupervisorListComponent {
   });
 
   protected readonly columns: TableColumn<SupervisorResponse>[] = [
-    { key: 'firstName', label: 'First name' },
-    { key: 'lastName', label: 'Last name' },
+    { key: 'firstName', label: 'First name', sortable: true },
+    { key: 'lastName', label: 'Last name', sortable: true },
     { key: 'employeeNumber', label: 'Emp. no.' },
-    { key: 'position', label: 'Position' },
+    { key: 'position', label: 'Position', sortable: true },
     { key: 'departmentName', label: 'Department' },
     { key: 'totalAssignments', label: 'Total' },
     { key: 'activeAssignments', label: 'Active' },
@@ -269,6 +272,8 @@ export class SupervisorListComponent {
     this.loading.set(true);
     this.failed.set(false);
     const v = this.filterForm.getRawValue();
+    const s = this.sort();
+    this.pageable.sort = s ? `${s.key},${s.direction}` : undefined;
     this.supervisors
       .getAll(this.pageable, {
         search: v.search || undefined,
@@ -287,6 +292,12 @@ export class SupervisorListComponent {
 
   protected totalPages(): number {
     return this.page()?.totalPages ?? 0;
+  }
+
+  protected onSort(sort: TableSortState): void {
+    this.sort.set(sort);
+    this.pageable.page = 0;
+    this.load();
   }
 
   protected hasPrev(): boolean {

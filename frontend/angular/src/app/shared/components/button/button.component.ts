@@ -1,4 +1,5 @@
-import { Component, input, output } from '@angular/core';
+import { Component, computed, input, output } from '@angular/core';
+import { IconComponent, type StegIconName } from '../icon/icon.component';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'success';
 export type ButtonSize = 'sm' | 'md' | 'lg';
@@ -6,6 +7,7 @@ export type ButtonSize = 'sm' | 'md' | 'lg';
 @Component({
   selector: 'steg-button',
   standalone: true,
+  imports: [IconComponent],
   host: {
     '[class.btn-block]': 'block()',
     '[class.btn-loading]': 'loading() || null'
@@ -23,7 +25,9 @@ export type ButtonSize = 'sm' | 'md' | 'lg';
         <span class="btn-spinner" aria-hidden="true"></span>
       }
       @if (icon() && !loading()) {
-        <span class="btn-icon" [innerHTML]="icon()" aria-hidden="true"></span>
+        <span class="btn-icon" aria-hidden="true">
+          <steg-icon [name]="safeIcon()" size="sm" />
+        </span>
       }
       @if (label()) {
         <span class="btn-label">{{ label() }}</span>
@@ -35,13 +39,25 @@ export type ButtonSize = 'sm' | 'md' | 'lg';
     `
       :host {
         display: inline-flex;
+        width: auto;
+        vertical-align: middle;
+      }
+      :host.btn-block {
+        display: flex;
         width: 100%;
       }
-      :host > button {
+      :host.btn-block > button {
         width: 100%;
       }
       :host.btn-loading {
         pointer-events: none;
+      }
+      .btn-icon {
+        display: inline-flex;
+        align-items: center;
+      }
+      .btn-icon steg-icon {
+        display: inline-flex;
       }
       .btn-spinner {
         width: 0.9rem;
@@ -67,6 +83,8 @@ export class ButtonComponent {
   readonly loading = input(false);
   readonly block = input(false);
   readonly label = input('');
-  readonly icon = input('');
+  readonly icon = input<StegIconName | ''>('');
   readonly click = output<Event>();
+
+  protected readonly safeIcon = computed<StegIconName>(() => (this.icon() || 'info') as StegIconName);
 }

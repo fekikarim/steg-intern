@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { debounceTime, finalize } from 'rxjs';
@@ -60,10 +60,20 @@ function formatSize(size?: number): string {
       subtitle="Manage documents attached to internships"
       [crumbs]="[{ label: 'Documents' }]"
     >
-      <steg-button variant="primary" label="Register document" icon="+" (click)="openRegister()" />
+      <steg-button variant="primary" label="Register document" icon="plus" (click)="openRegister()" />
     </steg-page-header>
 
     <div class="filters card" [formGroup]="filterForm">
+      <div class="search-wrap">
+        <input
+          class="search-input"
+          type="search"
+          id="doc-search"
+          placeholder="Search reference or type…"
+          [value]="searchQuery()"
+          (input)="onSearchInput($event)"
+        />
+      </div>
       <steg-field label="Internship">
         <steg-select
           id="doc-internship"
@@ -85,7 +95,7 @@ function formatSize(size?: number): string {
     } @else {
       <steg-table
         [columns]="columns"
-        [rows]="documents()"
+        [rows]="filteredDocuments()"
         [loading]="loading()"
         [rowSlot]="actionsRow"
         [trackBy]="trackById"
@@ -95,10 +105,10 @@ function formatSize(size?: number): string {
         </ng-template>
       </steg-table>
 
-      @if (!loading() && documents().length === 0) {
+      @if (!loading() && filteredDocuments().length === 0) {
         <div class="card panel">
           <steg-empty-state
-            icon="📄"
+            icon="documents"
             title="No documents found"
             message="Select an internship or register a document to get started."
           />
@@ -179,6 +189,20 @@ function formatSize(size?: number): string {
         gap: 1rem;
         padding: 1rem 1.25rem;
         margin-bottom: 1rem;
+        align-items: flex-end;
+      }
+      .search-wrap {
+        flex: 1;
+        min-width: 12rem;
+      }
+      .search-input {
+        width: 100%;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid var(--color-border, #d1d5db);
+        border-radius: var(--radius-md, 0.5rem);
+        background: var(--color-surface, #fff);
+        color: var(--color-text, #111827);
+        font-size: 0.875rem;
       }
       .filters steg-field {
         width: 18rem;
@@ -213,6 +237,10 @@ function formatSize(size?: number): string {
         .filters steg-field {
           width: 100%;
         }
+        .search-wrap {
+          width: 100%;
+          min-width: 0;
+        }
       }
       ::ng-deep .table-wrap .row-actions {
         display: flex;
@@ -231,6 +259,17 @@ export class DocumentListComponent {
   protected readonly failed = signal(false);
   protected readonly errorMessage = signal('Unable to load documents.');
   protected readonly documents = signal<DocumentResponse[]>([]);
+  protected readonly searchQuery = signal('');
+  protected readonly filteredDocuments = computed<DocumentResponse[]>(() => {
+    const q = this.searchQuery().trim().toLowerCase();
+    if (!q) {
+      return this.documents();
+    }
+    return this.documents().filter((doc) =>
+      [doc.reference, doc.type, doc.storageKey ?? '']
+        .some((value) => value.toLowerCase().includes(q))
+    );
+  });
   protected readonly internshipsList = signal<Array<{ id: string; label: string }>>([]);
   protected readonly showRegister = signal(false);
   protected readonly submitting = signal(false);
@@ -255,6 +294,10 @@ export class DocumentListComponent {
   ];
 
   protected readonly trackById = (row: DocumentResponse): string => row.id;
+
+  protected onSearchInput(event: Event): void {
+    this.searchQuery.set((event.target as HTMLInputElement).value);
+  }
 
   protected readonly internshipOptions = () =>
     this.internshipsList().map<SelectOption>((i) => ({ value: i.id, label: i.label }));

@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { finalize } from 'rxjs';
@@ -69,7 +69,17 @@ const DECISION_OPTIONS: SelectOption<ApprovalDecision>[] = [
       subtitle="Track validation and approval workflows across entities"
       [crumbs]="[{ label: 'Workflows' }]"
     >
-      <steg-button variant="primary" label="New workflow" icon="+" (click)="openCreate()" />
+      <div class="toolbar">
+        <input
+          class="search-input"
+          type="search"
+          id="workflow-search"
+          placeholder="Search name, entity type or status…"
+          [value]="searchQuery()"
+          (input)="onSearchInput($event)"
+        />
+      </div>
+      <steg-button variant="primary" label="New workflow" icon="plus" (click)="openCreate()" />
     </steg-page-header>
 
     @if (failed()) {
@@ -83,7 +93,7 @@ const DECISION_OPTIONS: SelectOption<ApprovalDecision>[] = [
     } @else {
       <steg-table
         [columns]="columns"
-        [rows]="workflows()"
+        [rows]="filteredWorkflows()"
         [loading]="loading()"
         [rowSlot]="actionsRow"
         [trackBy]="trackById"
@@ -100,10 +110,10 @@ const DECISION_OPTIONS: SelectOption<ApprovalDecision>[] = [
         </ng-template>
       </steg-table>
 
-      @if (!loading() && workflows().length === 0) {
+      @if (!loading() && filteredWorkflows().length === 0) {
         <div class="card panel">
           <steg-empty-state
-            icon="🔄"
+            icon="workflows"
             title="No workflows found"
             message="Create a workflow to route validation and approvals."
           />
@@ -226,6 +236,28 @@ const DECISION_OPTIONS: SelectOption<ApprovalDecision>[] = [
     `
       :host {
         display: block;
+      }
+      .toolbar {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+      }
+      .search-input {
+        padding: 0.5rem 0.75rem;
+        border: 1px solid var(--color-border, #d1d5db);
+        border-radius: var(--radius-md, 0.5rem);
+        background: var(--color-surface, #fff);
+        color: var(--color-text, #111827);
+        font-size: 0.875rem;
+        min-width: 14rem;
+      }
+      @media (max-width: 640px) {
+        .toolbar {
+          width: 100%;
+        }
+        .search-input {
+          width: 100%;
+        }
       }
       .panel {
         padding: 1.25rem;
@@ -366,6 +398,17 @@ export class WorkflowListComponent {
   protected readonly failed = signal(false);
   protected readonly errorMessage = signal('Unable to load workflows.');
   protected readonly workflows = signal<WorkflowResponse[]>([]);
+  protected readonly searchQuery = signal('');
+  protected readonly filteredWorkflows = computed<WorkflowResponse[]>(() => {
+    const q = this.searchQuery().trim().toLowerCase();
+    if (!q) {
+      return this.workflows();
+    }
+    return this.workflows().filter((wf) =>
+      [wf.name, wf.status, wf.relatedEntityType ?? '', wf.relatedEntityId ?? '']
+        .some((value) => value.toLowerCase().includes(q))
+    );
+  });
   protected readonly showCreate = signal(false);
   protected readonly submitting = signal(false);
   protected readonly stepSubmitting = signal<string | null>(null);
@@ -394,6 +437,10 @@ export class WorkflowListComponent {
   ];
 
   protected readonly trackById = (row: WorkflowResponse): string => row.id;
+
+  protected onSearchInput(event: Event): void {
+    this.searchQuery.set((event.target as HTMLInputElement).value);
+  }
 
   protected orderedSteps(wf: WorkflowResponse): WorkflowStepResponse[] {
     return [...(wf.steps ?? [])].sort((a, b) => a.sequence - b.sequence);

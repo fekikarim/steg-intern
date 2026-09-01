@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { debounceTime, finalize } from 'rxjs';
@@ -41,10 +41,20 @@ type AssignmentAction = 'end' | 'reassign' | 'cancel' | 'delete';
       subtitle="Assign internships to departments and supervisors"
       [crumbs]="[{ label: 'Assignments' }]"
     >
-      <steg-button variant="primary" label="New assignment" icon="+" (click)="openCreate()" />
+      <steg-button variant="primary" label="New assignment" icon="plus" (click)="openCreate()" />
     </steg-page-header>
 
     <div class="filters card" [formGroup]="filterForm">
+      <div class="search-wrap">
+        <input
+          class="search-input"
+          type="search"
+          id="assignment-search"
+          placeholder="Search reference, supervisor or status…"
+          [value]="searchQuery()"
+          (input)="onSearchInput($event)"
+        />
+      </div>
       <steg-field label="Status">
         <steg-select id="status-filter" formControlName="status" [options]="statusOptions" />
       </steg-field>
@@ -61,7 +71,7 @@ type AssignmentAction = 'end' | 'reassign' | 'cancel' | 'delete';
     } @else {
       <steg-table
         [columns]="columns"
-        [rows]="assignments()"
+        [rows]="filteredAssignments()"
         [loading]="loading()"
         [rowSlot]="actionsRow"
         [trackBy]="trackById"
@@ -74,10 +84,10 @@ type AssignmentAction = 'end' | 'reassign' | 'cancel' | 'delete';
         </ng-template>
       </steg-table>
 
-      @if (!loading() && assignments().length === 0) {
+      @if (!loading() && filteredAssignments().length === 0) {
         <div class="card panel">
           <steg-empty-state
-            icon="🔗"
+            icon="assignments"
             title="No assignments found"
             message="Create an assignment to link an internship to a supervisor."
           />
@@ -140,6 +150,20 @@ type AssignmentAction = 'end' | 'reassign' | 'cancel' | 'delete';
         gap: 1rem;
         padding: 1rem 1.25rem;
         margin-bottom: 1rem;
+        align-items: flex-end;
+      }
+      .search-wrap {
+        flex: 1;
+        min-width: 12rem;
+      }
+      .search-input {
+        width: 100%;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid var(--color-border, #d1d5db);
+        border-radius: var(--radius-md, 0.5rem);
+        background: var(--color-surface, #fff);
+        color: var(--color-text, #111827);
+        font-size: 0.875rem;
       }
       .filters steg-field {
         width: 13rem;
@@ -171,6 +195,10 @@ type AssignmentAction = 'end' | 'reassign' | 'cancel' | 'delete';
         .filters steg-field {
           width: 100%;
         }
+        .search-wrap {
+          width: 100%;
+          min-width: 0;
+        }
       }
       ::ng-deep .table-wrap .row-actions {
         display: flex;
@@ -191,6 +219,17 @@ export class AssignmentListComponent {
   protected readonly failed = signal(false);
   protected readonly errorMessage = signal('Unable to load assignments.');
   protected readonly assignments = signal<AssignmentResponse[]>([]);
+  protected readonly searchQuery = signal('');
+  protected readonly filteredAssignments = computed<AssignmentResponse[]>(() => {
+    const q = this.searchQuery().trim().toLowerCase();
+    if (!q) {
+      return this.assignments();
+    }
+    return this.assignments().filter((a) =>
+      [a.internshipReference, a.supervisorName, a.departmentName, a.status]
+        .some((value) => value.toLowerCase().includes(q))
+    );
+  });
   protected readonly internshipsList = signal<Array<{ id: string; label: string }>>([]);
   protected readonly departmentList = signal<Array<{ id: string; label: string }>>([]);
   protected readonly supervisorList = signal<Array<{ id: string; label: string }>>([]);
@@ -219,6 +258,10 @@ export class AssignmentListComponent {
   ];
 
   protected readonly trackById = (row: AssignmentResponse): string => row.id;
+
+  protected onSearchInput(event: Event): void {
+    this.searchQuery.set((event.target as HTMLInputElement).value);
+  }
 
   protected readonly internshipOptions = () =>
     this.internshipsList().map<SelectOption>((i) => ({ value: i.id, label: i.label }));

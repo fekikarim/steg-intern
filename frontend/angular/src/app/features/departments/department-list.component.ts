@@ -40,7 +40,7 @@ interface DeptNode {
       subtitle="Organisational hierarchy"
       [crumbs]="[{ label: 'Departments' }]"
     >
-      <steg-button variant="primary" label="New department" icon="+" (click)="openCreate()" />
+      <steg-button variant="primary" label="New department" icon="plus" (click)="openCreate()" />
     </steg-page-header>
 
     <div class="toolbar">
@@ -86,7 +86,7 @@ interface DeptNode {
         } @empty {
           <div class="panel">
             <steg-empty-state
-              icon="🏢"
+              icon="departments"
               title="No departments"
               message="Create a department to build the organisation hierarchy."
             />

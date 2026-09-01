@@ -54,7 +54,7 @@ const CURRENCY_OPTIONS: SelectOption<CurrencyCode>[] = [
       subtitle="Track indemnity and payment processing"
       [crumbs]="[{ label: 'Payments' }]"
     >
-      <steg-button variant="primary" label="New payment" icon="+" (click)="openCreate()" />
+      <steg-button variant="primary" label="New payment" icon="plus" (click)="openCreate()" />
     </steg-page-header>
 
     <div class="filters card" [formGroup]="filterForm">
@@ -90,7 +90,7 @@ const CURRENCY_OPTIONS: SelectOption<CurrencyCode>[] = [
       @if (!loading() && (page()?.content?.length ?? 0) === 0) {
         <div class="card panel">
           <steg-empty-state
-            icon="💶"
+            icon="payments"
             title="No payments found"
             message="Create a payment to start tracking indemnity processing."
           />

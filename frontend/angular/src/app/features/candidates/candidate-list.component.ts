@@ -3,7 +3,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { debounceTime, finalize } from 'rxjs';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
-import { TableComponent, TableColumn } from '../../shared/components/table/table.component';
+import { TableComponent, TableColumn, TableSortState } from '../../shared/components/table/table.component';
 import { PaginationComponent } from '../../shared/components/pagination/pagination.component';
 import { ModalComponent } from '../../shared/components/modal/modal.component';
 import { FieldComponent } from '../../shared/components/field/field.component';
@@ -47,7 +47,7 @@ import { CandidateResponse, UpdateCandidateRequest } from '../../core/models/int
           placeholder="Search name, email or CIN…"
         />
       </div>
-      <steg-button variant="primary" label="New candidate" icon="+" (click)="openCreate()" />
+      <steg-button variant="primary" label="New candidate" icon="plus" (click)="openCreate()" />
     </steg-page-header>
 
     @if (failed()) {
@@ -63,6 +63,8 @@ import { CandidateResponse, UpdateCandidateRequest } from '../../core/models/int
         [columns]="columns"
         [rows]="page()?.content ?? []"
         [loading]="loading()"
+        [sort]="sort()"
+        (sortChange)="onSort($event)"
         [rowSlot]="actionsRow"
         [trackBy]="trackById"
       >
@@ -76,7 +78,7 @@ import { CandidateResponse, UpdateCandidateRequest } from '../../core/models/int
       @if (!loading() && (page()?.content?.length ?? 0) === 0) {
         <div class="card panel">
           <steg-empty-state
-            icon="👤"
+            icon="candidates"
             title="No candidates found"
             message="Try adjusting the search, or register a new candidate."
           />
@@ -165,6 +167,7 @@ export class CandidateListComponent {
   protected readonly failed = signal(false);
   protected readonly errorMessage = signal('Unable to load candidates.');
   protected readonly page = signal<Page<CandidateResponse> | null>(null);
+  protected readonly sort = signal<TableSortState | null>(null);
   protected readonly showModal = signal(false);
   protected readonly editing = signal<CandidateResponse | null>(null);
   protected readonly submitting = signal(false);
@@ -176,9 +179,9 @@ export class CandidateListComponent {
   });
 
   protected readonly columns: TableColumn<CandidateResponse>[] = [
-    { key: 'firstName', label: 'First name' },
-    { key: 'lastName', label: 'Last name' },
-    { key: 'contactEmail', label: 'Email' },
+    { key: 'firstName', label: 'First name', sortable: true },
+    { key: 'lastName', label: 'Last name', sortable: true },
+    { key: 'contactEmail', label: 'Email', sortable: true },
     { key: 'university', label: 'University' },
     { key: 'nationalId', label: 'CIN' },
     { key: 'actions', label: '', align: 'right', slot: true }
@@ -212,6 +215,8 @@ export class CandidateListComponent {
     this.loading.set(true);
     this.failed.set(false);
     const v = this.filterForm.getRawValue();
+    const s = this.sort();
+    this.pageable.sort = s ? `${s.key},${s.direction}` : undefined;
     this.candidates
       .getAll(this.pageable, { search: v.search || undefined })
       .pipe(takeUntilDestroyed(), finalize(() => this.loading.set(false)))
@@ -223,6 +228,12 @@ export class CandidateListComponent {
           this.toast.error('Candidates load failed', this.errorMessage());
         }
       });
+  }
+
+  protected onSort(sort: TableSortState): void {
+    this.sort.set(sort);
+    this.pageable.page = 0;
+    this.load();
   }
 
   protected onPageChange(page: number): void {

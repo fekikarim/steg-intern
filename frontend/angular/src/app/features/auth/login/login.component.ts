@@ -24,6 +24,15 @@ import { ButtonComponent } from '../../../shared/components/button/button.compon
   ],
   template: `
     <div>
+      <div class="login-brand">
+        <img
+          src="assets/logo/logo-steg-1200x327.png"
+          alt="STEG - Société Tunisienne de l'Électricité et du Gaz - Logo"
+          class="login-logo"
+          width="1200"
+          height="327"
+        />
+      </div>
       <h1 class="login-title">Welcome back</h1>
       <p class="login-sub">Sign in to continue to the Back Office.</p>
 
@@ -90,6 +99,18 @@ import { ButtonComponent } from '../../../shared/components/button/button.compon
       .login-title {
         font-size: 1.375rem;
         margin-bottom: 0.25rem;
+      }
+      .login-brand {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 1.25rem;
+      }
+      .login-logo {
+        display: block;
+        width: 100%;
+        max-width: 15rem;
+        height: auto;
+        object-fit: contain;
       }
       .login-sub {
         color: var(--color-text-muted);

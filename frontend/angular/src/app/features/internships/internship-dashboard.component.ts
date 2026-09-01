@@ -6,6 +6,7 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
 import { ErrorStateComponent } from '../../shared/components/error-state/error-state.component';
 import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
+import { IconComponent, type StegIconName } from '../../shared/components/icon/icon.component';
 import { InternshipsService } from '../../core/services/internships.service';
 import { ToastService } from '../../core/services/toast.service';
 import { InternshipStats } from '../../core/models/internship.model';
@@ -13,7 +14,7 @@ import { InternshipStats } from '../../core/models/internship.model';
 interface StatCard {
   key: keyof InternshipStats;
   label: string;
-  icon: string;
+  icon: StegIconName;
   accent: 'primary' | 'info' | 'warning' | 'success' | 'danger';
   hint: string;
 }
@@ -26,7 +27,8 @@ interface StatCard {
     SkeletonComponent,
     ErrorStateComponent,
     EmptyStateComponent,
-    ButtonComponent
+    ButtonComponent,
+    IconComponent
   ],
   template: `
     <steg-page-header
@@ -39,7 +41,7 @@ interface StatCard {
           variant="outline"
           size="sm"
           label="Refresh"
-          icon="↻"
+          icon="refresh"
           [loading]="loading()"
           [disabled]="loading()"
           (click)="load()"
@@ -70,7 +72,9 @@ interface StatCard {
       <section class="stats">
         @for (card of statCards; track card.key) {
           <div class="stat card" [class.flat]="true">
-            <span class="stat-icon" [class]="accentClass(card.accent)" aria-hidden="true">{{ card.icon }}</span>
+            <span class="stat-icon" [class]="accentClass(card.accent)" aria-hidden="true">
+              <steg-icon [name]="card.icon" size="md" />
+            </span>
             <span class="stat-label">{{ card.label }}</span>
             <span class="stat-value">{{ formatNumber(stats()![card.key]) }}</span>
             <span class="stat-hint">{{ card.hint }}</span>
@@ -96,7 +100,7 @@ interface StatCard {
     } @else {
       <div class="card panel">
         <steg-empty-state
-          icon="🎓"
+          icon="internships"
           title="No data yet"
           message="The internship dashboard has no statistics to display right now."
         />
@@ -134,8 +138,9 @@ interface StatCard {
       }
       .stat-icon {
         align-self: flex-start;
-        font-size: 1.25rem;
-        line-height: 1;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         padding: 0.5rem;
         border-radius: var(--radius-md);
         background: var(--color-surface-alt);
@@ -199,15 +204,15 @@ export class InternshipDashboardComponent {
   protected readonly lastUpdated = signal('—');
 
   protected readonly statCards: StatCard[] = [
-    { key: 'totalInternships', label: 'Total internships', icon: '🎓', accent: 'primary', hint: 'All internships' },
-    { key: 'planned', label: 'Planned', icon: '🗓️', accent: 'info', hint: 'Scheduled, not started' },
-    { key: 'active', label: 'Active', icon: '▶', accent: 'success', hint: 'Currently in progress' },
-    { key: 'completed', label: 'Completed', icon: '✅', accent: 'success', hint: 'Finished internships' },
-    { key: 'cancelled', label: 'Cancelled', icon: '⛔', accent: 'danger', hint: 'Terminated early' },
-    { key: 'archived', label: 'Archived', icon: '📦', accent: 'warning', hint: 'Permanently archived' },
-    { key: 'pendingAssignments', label: 'Pending assignments', icon: '🔗', accent: 'info', hint: 'Awaiting a supervisor' },
-    { key: 'upcomingStarts', label: 'Upcoming starts', icon: '🚀', accent: 'warning', hint: 'Starting within 30 days' },
-    { key: 'upcomingEndings', label: 'Upcoming endings', icon: '🏁', accent: 'danger', hint: 'Ending within 30 days' }
+    { key: 'totalInternships', label: 'Total internships', icon: 'internships', accent: 'primary', hint: 'All internships' },
+    { key: 'planned', label: 'Planned', icon: 'calendar', accent: 'info', hint: 'Scheduled, not started' },
+    { key: 'active', label: 'Active', icon: 'play', accent: 'success', hint: 'Currently in progress' },
+    { key: 'completed', label: 'Completed', icon: 'check-circle', accent: 'success', hint: 'Finished internships' },
+    { key: 'cancelled', label: 'Cancelled', icon: 'x-circle', accent: 'danger', hint: 'Terminated early' },
+    { key: 'archived', label: 'Archived', icon: 'archive', accent: 'warning', hint: 'Permanently archived' },
+    { key: 'pendingAssignments', label: 'Pending assignments', icon: 'assignments', accent: 'info', hint: 'Awaiting a supervisor' },
+    { key: 'upcomingStarts', label: 'Upcoming starts', icon: 'rocket', accent: 'warning', hint: 'Starting within 30 days' },
+    { key: 'upcomingEndings', label: 'Upcoming endings', icon: 'flag', accent: 'danger', hint: 'Ending within 30 days' }
   ];
 
   constructor() {

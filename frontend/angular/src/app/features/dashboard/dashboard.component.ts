@@ -6,6 +6,7 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
 import { ErrorStateComponent } from '../../shared/components/error-state/error-state.component';
 import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
+import { IconComponent, type StegIconName } from '../../shared/components/icon/icon.component';
 import { DashboardService } from '../../core/services/dashboard.service';
 import { ToastService } from '../../core/services/toast.service';
 import { DashboardStats } from '../../core/models/dashboard.model';
@@ -13,7 +14,7 @@ import { DashboardStats } from '../../core/models/dashboard.model';
 interface StatCard {
   key: keyof DashboardStats;
   label: string;
-  icon: string;
+  icon: StegIconName;
   accent: 'primary' | 'info' | 'warning' | 'success' | 'danger';
   hint: string;
 }
@@ -26,7 +27,8 @@ interface StatCard {
     SkeletonComponent,
     ErrorStateComponent,
     EmptyStateComponent,
-    ButtonComponent
+    ButtonComponent,
+    IconComponent
   ],
   template: `
     <steg-page-header
@@ -39,7 +41,7 @@ interface StatCard {
           variant="outline"
           size="sm"
           label="Refresh"
-          icon="↻"
+          icon="refresh"
           [loading]="loading()"
           [disabled]="loading()"
           (click)="load()"
@@ -49,6 +51,22 @@ interface StatCard {
         </span>
       </div>
     </steg-page-header>
+
+    <section class="dashboard-brand" aria-label="STEG brand">
+      <img
+        src="assets/logo/logo-steg-341x308.png"
+        alt="STEG - Société Tunisienne de l'Électricité et du Gaz - Logo"
+        class="brand-logo"
+        width="341"
+        height="308"
+        loading="eager"
+        fetchpriority="high"
+      />
+      <div class="brand-copy">
+        <h2 class="brand-title">STEG Back Office</h2>
+        <p class="brand-sub">Internship management platform for the Tunisian Company of Electricity and Gas.</p>
+      </div>
+    </section>
 
     @if (failed()) {
       <div class="card panel">
@@ -70,7 +88,9 @@ interface StatCard {
       <section class="stats">
         @for (card of statCards; track card.key) {
           <div class="stat card" [class.flat]="true">
-            <span class="stat-icon" [class]="accentClass(card.accent)" aria-hidden="true">{{ card.icon }}</span>
+            <span class="stat-icon" [class]="accentClass(card.accent)" aria-hidden="true">
+              <steg-icon [name]="card.icon" size="md" />
+            </span>
             <span class="stat-label">{{ card.label }}</span>
             <span class="stat-value">{{ formatNumber(stats()![card.key]) }}</span>
             <span class="stat-hint">{{ card.hint }}</span>
@@ -80,7 +100,7 @@ interface StatCard {
     } @else {
       <div class="card panel">
         <steg-empty-state
-          icon="📊"
+          icon="reports"
           title="No data yet"
           message="The dashboard has no statistics to display right now."
         />
@@ -93,6 +113,59 @@ interface StatCard {
         display: flex;
         align-items: center;
         gap: 0.75rem;
+      }
+      .dashboard-brand {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1.25rem;
+      }
+      .brand-logo {
+        width: 3.5rem;
+        height: auto;
+        object-fit: contain;
+        flex-shrink: 0;
+        animation: hero-in 0.4s ease both;
+      }
+      .brand-copy {
+        display: flex;
+        flex-direction: column;
+        gap: 0.1rem;
+        min-width: 0;
+      }
+      .brand-title {
+        margin: 0;
+        font-size: 1.375rem;
+        font-weight: 700;
+        color: var(--color-text);
+        line-height: 1.2;
+      }
+      .brand-sub {
+        margin: 0;
+        font-size: 0.875rem;
+        color: var(--color-text-muted);
+        line-height: 1.4;
+      }
+      @keyframes hero-in {
+        from {
+          opacity: 0;
+          transform: translateY(-6px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      @media (max-width: 480px) {
+        .dashboard-brand {
+          align-items: flex-start;
+        }
+        .brand-logo {
+          width: 3rem;
+        }
+        .brand-sub {
+          display: none;
+        }
       }
       .last-updated {
         font-size: 0.75rem;
@@ -117,8 +190,9 @@ interface StatCard {
       }
       .stat-icon {
         align-self: flex-start;
-        font-size: 1.25rem;
-        line-height: 1;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         padding: 0.5rem;
         border-radius: var(--radius-md);
         background: var(--color-surface-alt);
@@ -165,14 +239,14 @@ export class DashboardComponent {
   protected readonly lastUpdated = signal('—');
 
   protected readonly statCards: StatCard[] = [
-    { key: 'totalCandidates', label: 'Candidates', icon: '👤', accent: 'primary', hint: 'Registered candidates' },
-    { key: 'totalApplications', label: 'Applications', icon: '📨', accent: 'info', hint: 'Total applications received' },
-    { key: 'totalInternships', label: 'Internships', icon: '🎓', accent: 'primary', hint: 'All internships' },
-    { key: 'activeInternships', label: 'Active internships', icon: '▶', accent: 'success', hint: 'Currently in progress' },
-    { key: 'activeAssignments', label: 'Active assignments', icon: '🔗', accent: 'info', hint: 'Internships with a supervisor' },
-    { key: 'totalSupervisors', label: 'Supervisors', icon: '🧑‍🏫', accent: 'warning', hint: 'Registered supervisors' },
-    { key: 'totalEmployees', label: 'Employees', icon: '🏢', accent: 'info', hint: 'Internal staff' },
-    { key: 'pendingPayments', label: 'Pending payments', icon: '💶', accent: 'danger', hint: 'Awaiting payment' }
+    { key: 'totalCandidates', label: 'Candidates', icon: 'candidates', accent: 'primary', hint: 'Registered candidates' },
+    { key: 'totalApplications', label: 'Applications', icon: 'applications', accent: 'info', hint: 'Total applications received' },
+    { key: 'totalInternships', label: 'Internships', icon: 'internships', accent: 'primary', hint: 'All internships' },
+    { key: 'activeInternships', label: 'Active internships', icon: 'play', accent: 'success', hint: 'Currently in progress' },
+    { key: 'activeAssignments', label: 'Active assignments', icon: 'assignments', accent: 'info', hint: 'Internships with a supervisor' },
+    { key: 'totalSupervisors', label: 'Supervisors', icon: 'supervisors', accent: 'warning', hint: 'Registered supervisors' },
+    { key: 'totalEmployees', label: 'Employees', icon: 'building', accent: 'info', hint: 'Internal staff' },
+    { key: 'pendingPayments', label: 'Pending payments', icon: 'payments', accent: 'danger', hint: 'Awaiting payment' }
   ];
 
   constructor() {

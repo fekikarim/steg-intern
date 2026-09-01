@@ -3,7 +3,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { debounceTime, finalize } from 'rxjs';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
-import { TableComponent, TableColumn } from '../../shared/components/table/table.component';
+import { TableComponent, TableColumn, TableSortState } from '../../shared/components/table/table.component';
 import { PaginationComponent } from '../../shared/components/pagination/pagination.component';
 import { ModalComponent } from '../../shared/components/modal/modal.component';
 import { FieldComponent } from '../../shared/components/field/field.component';
@@ -51,7 +51,7 @@ type InternshipAction = 'activate' | 'complete' | 'cancel' | 'archive';
           placeholder="Search reference or candidate…"
         />
       </div>
-      <steg-button variant="primary" label="New internship" icon="+" (click)="openCreate()" />
+      <steg-button variant="primary" label="New internship" icon="plus" (click)="openCreate()" />
     </steg-page-header>
 
     <div class="filters card" [formGroup]="filterForm">
@@ -73,6 +73,8 @@ type InternshipAction = 'activate' | 'complete' | 'cancel' | 'archive';
         [columns]="columns"
         [rows]="page()?.content ?? []"
         [loading]="loading()"
+        [sort]="sort()"
+        (sortChange)="onSort($event)"
         [rowSlot]="actionsRow"
         [trackBy]="trackById"
       >
@@ -89,7 +91,7 @@ type InternshipAction = 'activate' | 'complete' | 'cancel' | 'archive';
       @if (!loading() && (page()?.content?.length ?? 0) === 0) {
         <div class="card panel">
           <steg-empty-state
-            icon="🎓"
+            icon="internships"
             title="No internships found"
             message="Try adjusting the search or filters, or create a new internship."
           />
@@ -195,6 +197,7 @@ export class InternshipListComponent {
   protected readonly failed = signal(false);
   protected readonly errorMessage = signal('Unable to load internships.');
   protected readonly page = signal<Page<InternshipResponse> | null>(null);
+  protected readonly sort = signal<TableSortState | null>(null);
   protected readonly candidatesList = signal<Array<{ id: string; name: string }>>([]);
   protected readonly showModal = signal(false);
   protected readonly submitting = signal(false);
@@ -216,11 +219,11 @@ export class InternshipListComponent {
   ];
 
   protected readonly columns: TableColumn<InternshipResponse>[] = [
-    { key: 'reference', label: 'Reference' },
-    { key: 'candidateName', label: 'Candidate' },
-    { key: 'startDate', label: 'Start' },
-    { key: 'endDate', label: 'End' },
-    { key: 'status', label: 'Status' },
+    { key: 'reference', label: 'Reference', sortable: true },
+    { key: 'candidateName', label: 'Candidate', sortable: true },
+    { key: 'startDate', label: 'Start', sortable: true },
+    { key: 'endDate', label: 'End', sortable: true },
+    { key: 'status', label: 'Status', sortable: true },
     { key: 'actions', label: '', align: 'right', slot: true }
   ];
 
@@ -263,6 +266,8 @@ export class InternshipListComponent {
     this.loading.set(true);
     this.failed.set(false);
     const v = this.filterForm.getRawValue();
+    const s = this.sort();
+    this.pageable.sort = s ? `${s.key},${s.direction}` : undefined;
     this.internships
       .getAll(this.pageable, { search: v.search || undefined, status: v.status })
       .pipe(takeUntilDestroyed(), finalize(() => this.loading.set(false)))
@@ -278,6 +283,12 @@ export class InternshipListComponent {
 
   protected onPageChange(page: number): void {
     this.pageable.page = page;
+    this.load();
+  }
+
+  protected onSort(sort: TableSortState): void {
+    this.sort.set(sort);
+    this.pageable.page = 0;
     this.load();
   }
 

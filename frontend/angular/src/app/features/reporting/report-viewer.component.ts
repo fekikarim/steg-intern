@@ -5,6 +5,7 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
 import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.component';
 import { ErrorStateComponent } from '../../shared/components/error-state/error-state.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
+import { IconComponent, type StegIconName } from '../../shared/components/icon/icon.component';
 import { ReportingService } from '../../core/services/reporting.service';
 import { ToastService } from '../../core/services/toast.service';
 import { InternshipReportResponse, PaymentReportResponse } from '../../core/models/report.model';
@@ -12,7 +13,7 @@ import { InternshipReportResponse, PaymentReportResponse } from '../../core/mode
 interface Card {
   label: string;
   value: string;
-  icon: string;
+  icon: StegIconName;
   accent: 'primary' | 'info' | 'warning' | 'success' | 'danger';
   hint: string;
 }
@@ -24,7 +25,8 @@ interface Card {
     PageHeaderComponent,
     SkeletonComponent,
     ErrorStateComponent,
-    ButtonComponent
+    ButtonComponent,
+    IconComponent
   ],
   template: `
     <steg-page-header
@@ -37,7 +39,7 @@ interface Card {
           variant="outline"
           size="sm"
           label="Refresh"
-          icon="↻"
+          icon="refresh"
           [loading]="loading()"
           [disabled]="loading()"
           (click)="load()"
@@ -61,7 +63,9 @@ interface Card {
         <div class="cards">
           @for (card of internshipCards(); track card.label) {
             <div class="stat card">
-              <span class="stat-icon" [class]="accentClass(card.accent)" aria-hidden="true">{{ card.icon }}</span>
+              <span class="stat-icon" [class]="accentClass(card.accent)" aria-hidden="true">
+                <steg-icon [name]="card.icon" size="md" />
+              </span>
               <span class="stat-label">{{ card.label }}</span>
               <span class="stat-value">{{ card.value }}</span>
               <span class="stat-hint">{{ card.hint }}</span>
@@ -75,7 +79,9 @@ interface Card {
         <div class="cards">
           @for (card of paymentCards(); track card.label) {
             <div class="stat card">
-              <span class="stat-icon" [class]="accentClass(card.accent)" aria-hidden="true">{{ card.icon }}</span>
+              <span class="stat-icon" [class]="accentClass(card.accent)" aria-hidden="true">
+                <steg-icon [name]="card.icon" size="md" />
+              </span>
               <span class="stat-label">{{ card.label }}</span>
               <span class="stat-value">{{ card.value }}</span>
               <span class="stat-hint">{{ card.hint }}</span>
@@ -112,8 +118,9 @@ interface Card {
       }
       .stat-icon {
         align-self: flex-start;
-        font-size: 1.25rem;
-        line-height: 1;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         padding: 0.5rem;
         border-radius: var(--radius-md);
         background: var(--color-surface-alt);
@@ -192,12 +199,12 @@ export class ReportViewerComponent {
       return [];
     }
     return [
-      { label: 'Total internships', value: fmt(r.total), icon: '🎓', accent: 'primary', hint: 'All internships' },
-      { label: 'Planned', value: fmt(r.planned), icon: '📅', accent: 'info', hint: 'Not yet started' },
-      { label: 'Active', value: fmt(r.active), icon: '▶', accent: 'success', hint: 'In progress' },
-      { label: 'Completed', value: fmt(r.completed), icon: '✅', accent: 'success', hint: 'Finished' },
-      { label: 'Cancelled', value: fmt(r.cancelled), icon: '✖', accent: 'danger', hint: 'Aborted' },
-      { label: 'Archived', value: fmt(r.archived), icon: '🗄️', accent: 'warning', hint: 'Archived' }
+      { label: 'Total internships', value: fmt(r.total), icon: 'internships', accent: 'primary', hint: 'All internships' },
+      { label: 'Planned', value: fmt(r.planned), icon: 'calendar', accent: 'info', hint: 'Not yet started' },
+      { label: 'Active', value: fmt(r.active), icon: 'play', accent: 'success', hint: 'In progress' },
+      { label: 'Completed', value: fmt(r.completed), icon: 'check-circle', accent: 'success', hint: 'Finished' },
+      { label: 'Cancelled', value: fmt(r.cancelled), icon: 'x-circle', accent: 'danger', hint: 'Aborted' },
+      { label: 'Archived', value: fmt(r.archived), icon: 'archive', accent: 'warning', hint: 'Archived' }
     ];
   }
 
@@ -207,11 +214,11 @@ export class ReportViewerComponent {
       return [];
     }
     return [
-      { label: 'Total payments', value: fmt(r.total), icon: '💶', accent: 'primary', hint: 'All payments' },
-      { label: 'Pending', value: fmt(r.pending), icon: '⏳', accent: 'warning', hint: money(r.totalPendingAmount) },
-      { label: 'Validated', value: fmt(r.validated), icon: '✔', accent: 'info', hint: money(r.totalValidatedAmount) },
-      { label: 'Paid', value: fmt(r.paid), icon: '💵', accent: 'success', hint: money(r.totalPaidAmount) },
-      { label: 'Archived', value: fmt(r.archived), icon: '🗄️', accent: 'warning', hint: 'Archived' }
+      { label: 'Total payments', value: fmt(r.total), icon: 'payments', accent: 'primary', hint: 'All payments' },
+      { label: 'Pending', value: fmt(r.pending), icon: 'pending', accent: 'warning', hint: money(r.totalPendingAmount) },
+      { label: 'Validated', value: fmt(r.validated), icon: 'check-circle', accent: 'info', hint: money(r.totalValidatedAmount) },
+      { label: 'Paid', value: fmt(r.paid), icon: 'currency', accent: 'success', hint: money(r.totalPaidAmount) },
+      { label: 'Archived', value: fmt(r.archived), icon: 'archive', accent: 'warning', hint: 'Archived' }
     ];
   }
 

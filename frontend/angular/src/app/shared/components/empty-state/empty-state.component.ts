@@ -1,12 +1,16 @@
-import { Component, input } from '@angular/core';
+import { Component, computed, input } from '@angular/core';
+import { IconComponent, type StegIconName } from '../icon/icon.component';
 
 @Component({
   selector: 'steg-empty-state',
   standalone: true,
+  imports: [IconComponent],
   template: `
     <div class="empty-state">
       @if (icon()) {
-        <div class="empty-icon" [innerHTML]="icon()" aria-hidden="true"></div>
+        <div class="empty-icon" aria-hidden="true">
+          <steg-icon [name]="safeIcon()" size="xl" />
+        </div>
       }
       <h3 class="empty-title">{{ title() }}</h3>
       @if (message()) {
@@ -27,9 +31,13 @@ import { Component, input } from '@angular/core';
         padding: 3rem 1.5rem;
       }
       .empty-icon {
-        font-size: 2rem;
+        display: inline-flex;
         margin-bottom: 0.5rem;
-        opacity: 0.6;
+        padding: 1rem;
+        border-radius: var(--radius-full);
+        background: var(--color-surface-alt);
+        border: 1px solid var(--color-border);
+        color: var(--color-text-muted);
       }
       .empty-title {
         font-size: 1rem;
@@ -47,7 +55,9 @@ import { Component, input } from '@angular/core';
   ]
 })
 export class EmptyStateComponent {
-  readonly icon = input('');
+  readonly icon = input<StegIconName | ''>('');
   readonly title = input('Nothing here yet');
   readonly message = input('');
+
+  protected readonly safeIcon = computed<StegIconName>(() => (this.icon() || 'info') as StegIconName);
 }

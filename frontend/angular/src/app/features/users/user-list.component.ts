@@ -3,7 +3,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { debounceTime, finalize } from 'rxjs';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
-import { TableComponent, TableColumn } from '../../shared/components/table/table.component';
+import { TableComponent, TableColumn, TableSortState } from '../../shared/components/table/table.component';
 import { PaginationComponent } from '../../shared/components/pagination/pagination.component';
 import { ModalComponent } from '../../shared/components/modal/modal.component';
 import { FieldComponent } from '../../shared/components/field/field.component';
@@ -55,7 +55,7 @@ type UserAction = 'edit' | 'toggleEnable' | 'toggleLock' | 'delete';
           placeholder="Search email or role…"
         />
       </div>
-      <steg-button variant="primary" label="New user" icon="+" (click)="openCreate()" />
+      <steg-button variant="primary" label="New user" icon="plus" (click)="openCreate()" />
     </steg-page-header>
 
     <div class="filters card" [formGroup]="filterForm">
@@ -88,6 +88,8 @@ type UserAction = 'edit' | 'toggleEnable' | 'toggleLock' | 'delete';
         [columns]="columns"
         [rows]="page()?.content ?? []"
         [loading]="loading()"
+        [sort]="sort()"
+        (sortChange)="onSort($event)"
         [rowSlot]="actionsRow"
         [trackBy]="trackById"
       >
@@ -109,7 +111,7 @@ type UserAction = 'edit' | 'toggleEnable' | 'toggleLock' | 'delete';
       @if (!loading() && (page()?.content?.length ?? 0) === 0) {
         <div class="card panel">
           <steg-empty-state
-            icon="👥"
+            icon="users"
             title="No users found"
             message="Try adjusting the search or filters, or create a new user."
           />
@@ -233,6 +235,7 @@ export class UserListComponent {
   protected readonly failed = signal(false);
   protected readonly errorMessage = signal('Unable to load users.');
   protected readonly page = signal<Page<UserResponse> | null>(null);
+  protected readonly sort = signal<TableSortState | null>(null);
   protected readonly rolesList = signal<RoleResponse[]>([]);
   protected readonly showModal = signal(false);
   protected readonly editing = signal<UserResponse | null>(null);
@@ -255,9 +258,9 @@ export class UserListComponent {
   ];
 
   protected readonly columns: TableColumn<UserResponse>[] = [
-    { key: 'email', label: 'Email' },
-    { key: 'roleName', label: 'Role' },
-    { key: 'status', label: 'Status' },
+    { key: 'email', label: 'Email', sortable: true },
+    { key: 'roleName', label: 'Role', sortable: true },
+    { key: 'status', label: 'Status', sortable: true },
     { key: 'enabled', label: 'Enabled' },
     { key: 'actions', label: '', align: 'right', slot: true }
   ];
@@ -302,6 +305,8 @@ export class UserListComponent {
     this.loading.set(true);
     this.failed.set(false);
     const v = this.filterForm.getRawValue();
+    const s = this.sort();
+    this.pageable.sort = s ? `${s.key},${s.direction}` : undefined;
     this.users
       .getAll(this.pageable, {
         search: v.search || undefined,
@@ -321,6 +326,12 @@ export class UserListComponent {
 
   protected onPageChange(page: number): void {
     this.pageable.page = page;
+    this.load();
+  }
+
+  protected onSort(sort: TableSortState): void {
+    this.sort.set(sort);
+    this.pageable.page = 0;
     this.load();
   }
 
